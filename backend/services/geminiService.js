@@ -36,6 +36,11 @@ async function generateRecipeSuggestion(options = {}) {
     throw new Error('Gemini returned invalid JSON: ' + cleaned.slice(0, 200));
   }
 
+  // Gemini sometimes returns arrays instead of newline-separated strings
+  if (Array.isArray(recipe.ingredients)) recipe.ingredients = recipe.ingredients.join('\n');
+  if (Array.isArray(recipe.instructions)) recipe.instructions = recipe.instructions.join('\n');
+  if (Array.isArray(recipe.tags)) recipe.tags = recipe.tags; // already correct format
+
   recipe.id = `gemini-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
   recipe.source = 'gemini';
   return recipe;
