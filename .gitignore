@@ -1,6 +1,8 @@
 node_modules/
 dist/
+frontend/dist/
 .env
 .env.local
 .DS_Store
 *.log
+package-lock.json

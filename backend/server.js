@@ -30,6 +30,11 @@ app.use((err, _req, res, _next) => {
   res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
 });
 
-app.listen(PORT, () => {
-  console.log(`NotionCook backend running on http://localhost:${PORT}`);
-});
+// Start server only when run directly (not imported by Vercel)
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`NotionCook backend running on http://localhost:${PORT}`);
+  });
+}
+
+module.exports = app;
