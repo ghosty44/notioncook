@@ -4,7 +4,7 @@ import { useGemini } from '../hooks/useGemini';
 import RecipeModal from './RecipeModal';
 import clsx from 'clsx';
 
-const MEAL_TYPES = ['', 'Petit-déjeuner', 'Déjeuner', 'Dîner', 'Snack', 'Dessert'];
+const MEAL_TYPES = ['', 'Petit-déjeuner', 'Déjeuner', 'Dîner', 'Snack', 'Dessert', 'Soupe', 'Salade'];
 
 export default function GeminiSuggestions({ existingRecipeNames, onSaveToNotion }) {
   const { suggestions, loading, error, fetchSuggestions, fetchOne, removeSuggestion, setSuggestions } = useGemini();

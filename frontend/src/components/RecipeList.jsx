@@ -10,6 +10,8 @@ const CATEGORY_FILTERS = [
   'Dîner',
   'Snack',
   'Dessert',
+  'Soupe',
+  'Salade',
   'Autre',
 ];
 

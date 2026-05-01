@@ -8,6 +8,8 @@ const CATEGORY_COLORS = {
   'Dîner': 'badge-purple',
   'Snack': 'badge-green',
   'Dessert': 'bg-pink-100 text-pink-700 badge',
+  'Soupe': 'bg-amber-100 text-amber-700 badge',
+  'Salade': 'bg-lime-100 text-lime-700 badge',
   'Autre': 'bg-gray-100 text-gray-600 badge',
 };
 
