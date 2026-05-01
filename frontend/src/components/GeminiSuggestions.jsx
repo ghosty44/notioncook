@@ -10,7 +10,7 @@ export default function GeminiSuggestions({ existingRecipeNames, onSaveToNotion 
   const { suggestions, loading, error, fetchSuggestions, fetchOne, removeSuggestion, setSuggestions } = useGemini();
   const [preferences, setPreferences] = useState('');
   const [mealType, setMealType] = useState('');
-  const [count, setCount] = useState(3);
+  const [count, setCount] = useState(1);
   const [selectedRecipe, setSelectedRecipe] = useState(null);
   const [savingId, setSavingId] = useState(null);
   const [savedIds, setSavedIds] = useState(new Set());
