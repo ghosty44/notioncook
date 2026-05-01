@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 
 const notionRoutes = require('./routes/notion');
+const geminiRoutes = require('./routes/gemini');
 const mealsRoutes = require('./routes/meals');
 
 const app = express();
@@ -17,6 +18,7 @@ app.use(cors({
 app.use(express.json({ limit: '2mb' }));
 
 app.use('/api/notion', notionRoutes);
+app.use('/api/gemini', geminiRoutes);
 app.use('/api/meals', mealsRoutes);
 
 app.get('/api/health', (_req, res) => {

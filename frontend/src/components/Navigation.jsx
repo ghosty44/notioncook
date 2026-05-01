@@ -1,10 +1,11 @@
 import React from 'react';
-import { ChefHat, BookOpen, ShoppingCart, CalendarDays } from 'lucide-react';
+import { ChefHat, BookOpen, ShoppingCart, CalendarDays, Sparkles } from 'lucide-react';
 import clsx from 'clsx';
 
 const TAB_ICONS = {
   planner: CalendarDays,
   recipes: BookOpen,
+  generator: Sparkles,
   shopping: ShoppingCart,
 };
 

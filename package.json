@@ -2,6 +2,7 @@
   "name": "notioncook",
   "version": "1.0.0",
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@notionhq/client": "^2.3.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
