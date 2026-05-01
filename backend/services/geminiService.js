@@ -39,7 +39,11 @@ ${mealText}
 Réponds uniquement avec un objet JSON respectant ce schéma :
 ${RECIPE_SCHEMA}`;
 
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+  // thinkingBudget: 0 disables the "thinking" mode — much faster responses
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-2.5-flash',
+    generationConfig: { thinkingConfig: { thinkingBudget: 0 } },
+  });
   const result = await model.generateContent(prompt);
   const text = result.response.text();
 
