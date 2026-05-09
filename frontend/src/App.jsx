@@ -24,7 +24,7 @@ const PAGE_TITLES = {
   shopping: 'Liste de courses',
   timeline: 'Planning cuisson',
   ai: 'Suggestions IA',
-  drive: 'Drive Intermarché',
+  drive: 'Panier Drive',
 };
 
 export default function App() {

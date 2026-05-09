@@ -5,7 +5,6 @@ const cors = require('cors');
 const notionRoutes = require('./routes/notion');
 const geminiRoutes = require('./routes/gemini');
 const sessionRoutes = require('./routes/session');
-const intermarcheRoutes = require('./routes/intermarche');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -21,7 +20,6 @@ app.use(express.json({ limit: '2mb' }));
 app.use('/api/notion', notionRoutes);
 app.use('/api/gemini', geminiRoutes);
 app.use('/api/session', sessionRoutes);
-app.use('/api/intermarche', intermarcheRoutes);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
