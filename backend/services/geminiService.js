@@ -2,15 +2,16 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-async function generateRecipeFromIdea(idea) {
+async function generateBatchRecipe(preferences) {
   const model = genAI.getGenerativeModel({
     model: 'gemini-2.5-flash',
     generationConfig: { thinkingConfig: { thinkingBudget: 0 } },
   });
 
-  const prompt = `Tu es un chef cuisinier. Génère une recette détaillée pour 2 adultes à partir de cette idée : "${idea}".
+  const prompt = `Tu es un expert en batch cooking. Génère une recette adaptée au batch cooking pour 4-6 portions à partir de ces préférences : "${preferences}".
+La recette DOIT être adaptée à la préparation en grande quantité, se conserver plusieurs jours et être facile à réchauffer.
 Réponds UNIQUEMENT avec ce JSON (sans texte autour) :
-{"name":"","category":"Déjeuner|Dîner|Petit-déjeuner|Snack|Dessert|Soupe|Salade","prepTime":0,"cookTime":0,"servings":2,"tags":[],"ingredients":"une ligne par ingrédient avec quantité","instructions":"étapes numérotées, une par ligne","babyAdaptation":"","nutritionNotes":""}`;
+{"name":"","category":"Déjeuner|Dîner|Petit-déjeuner|Snack|Dessert|Soupe|Salade","prepTime":0,"cookTime":0,"servings":4,"tags":[],"ingredients":"une ligne par ingrédient avec quantité","instructions":"étapes numérotées, une par ligne","batchFriendly":true,"storageDays":0,"storageMethod":"Frigo|Congélateur|Température ambiante","storageTips":""}`;
 
   const result = await model.generateContent(prompt);
   const text = result.response.text();
@@ -31,4 +32,4 @@ Réponds UNIQUEMENT avec ce JSON (sans texte autour) :
   return recipe;
 }
 
-module.exports = { generateRecipeFromIdea };
+module.exports = { generateBatchRecipe };

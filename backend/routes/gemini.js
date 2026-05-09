@@ -1,13 +1,15 @@
 const express = require('express');
 const router = express.Router();
-const { generateRecipeFromIdea } = require('../services/geminiService');
+const { generateBatchRecipe } = require('../services/geminiService');
 
 router.post('/generate', async (req, res, next) => {
   try {
-    const { idea } = req.body;
-    if (!idea?.trim()) return res.status(400).json({ error: 'Donnez une idée de recette' });
-    const recipe = await generateRecipeFromIdea(idea.trim());
-    res.json(recipe);
+    const { preferences, count = 1 } = req.body;
+    if (!preferences?.trim()) return res.status(400).json({ error: 'Donnez des préférences de recette' });
+    const recipes = await Promise.all(
+      Array.from({ length: Math.min(count, 4) }, () => generateBatchRecipe(preferences.trim()))
+    );
+    res.json(recipes);
   } catch (err) {
     next(err);
   }

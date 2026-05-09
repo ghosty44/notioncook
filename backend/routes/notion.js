@@ -33,12 +33,17 @@ router.get('/recipes/:id', async (req, res, next) => {
 
 router.post('/recipes', async (req, res, next) => {
   try {
-    const { name, ingredients, instructions, prepTime, cookTime, servings, tags, category, babyAdaptation } = req.body;
+    const {
+      name, ingredients, instructions, prepTime, cookTime,
+      servings, tags, category, batchFriendly, storageDays, storageMethod,
+    } = req.body;
     if (!name) return res.status(400).json({ error: 'Le nom de la recette est requis' });
-
     const created = await createRecipe({
       name, ingredients, instructions, prepTime, cookTime,
-      servings: servings || 2, tags, category, babyAdaptation,
+      servings: servings || 4, tags, category,
+      batchFriendly: batchFriendly || false,
+      storageDays: storageDays || null,
+      storageMethod: storageMethod || null,
     });
     res.status(201).json(created);
   } catch (err) {
