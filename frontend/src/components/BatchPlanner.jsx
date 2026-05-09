@@ -143,7 +143,7 @@ function MealCard({ meal, icon, label, regenerating, onRegenerate, peopleCount, 
         </button>
       </div>
       {showModal && fullRecipe && (
-        <RecipeModal recipe={fullRecipe} onClose={() => setShowModal(false)} />
+        <RecipeModal recipe={fullRecipe} showBatchNote onClose={() => setShowModal(false)} />
       )}
     </>
   );

@@ -4,7 +4,7 @@ import { useBatchStore } from '../store/batchStore';
 const BABY_BIRTH = new Date('2025-03-05');
 const babyAgeMonths = Math.floor((Date.now() - BABY_BIRTH.getTime()) / (1000 * 60 * 60 * 24 * 30.44));
 
-export default function RecipeModal({ recipe, onClose }) {
+export default function RecipeModal({ recipe, onClose, showBatchNote = false }) {
   const { addEntry, entries } = useBatchStore();
   const isInSession = entries.some((e) => e.recipe.id === recipe.id);
 
@@ -73,8 +73,8 @@ export default function RecipeModal({ recipe, onClose }) {
             )}
           </div>
 
-          {/* Batch note */}
-          {recipe.batchNote && (
+          {/* Batch note — batch cooking section only */}
+          {showBatchNote && recipe.batchNote && (
             <div className="mb-5">
               <div className="bg-green-50 border border-green-100 rounded-2xl p-4">
                 <p className="text-[13px] font-semibold text-green-700 mb-1">♻️ Note batch</p>
