@@ -30,15 +30,12 @@ export default function RecipeLibrary({ recipes, loading, error, onRefetch }) {
   if (error) return (
     <div className="text-center py-20">
       <p className="text-red-500 mb-4 text-sm">{error}</p>
-      <button onClick={onRefetch} className="bg-orange-500 text-white px-6 py-2.5 rounded-full font-semibold text-sm">
-        Réessayer
-      </button>
+      <button onClick={onRefetch} className="bg-orange-500 text-white px-6 py-2.5 rounded-full font-semibold text-sm">Réessayer</button>
     </div>
   );
 
   return (
     <div>
-      {/* Search */}
       <div className="relative mb-3">
         <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8e8e93] text-sm">🔍</span>
         <input
@@ -50,7 +47,6 @@ export default function RecipeLibrary({ recipes, loading, error, onRefetch }) {
         />
       </div>
 
-      {/* Category pills */}
       <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1 mb-3">
         {CATEGORIES.map((c) => (
           <button
@@ -63,7 +59,6 @@ export default function RecipeLibrary({ recipes, loading, error, onRefetch }) {
         ))}
       </div>
 
-      {/* Batch toggle */}
       <div
         onClick={() => setBatchOnly(!batchOnly)}
         className="flex items-center justify-between bg-white rounded-2xl px-4 py-3 mb-5 shadow-sm border border-black/5 cursor-pointer"
@@ -72,12 +67,8 @@ export default function RecipeLibrary({ recipes, loading, error, onRefetch }) {
           <div className="text-sm font-medium text-[#1c1c1e]">Batch-friendly uniquement</div>
           <div className="text-xs text-[#8e8e93]">Se conserve bien au frigo / congélo</div>
         </div>
-        <div className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${
-          batchOnly ? 'bg-orange-500' : 'bg-[#e5e5ea]'
-        }`}>
-          <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
-            batchOnly ? 'translate-x-5' : ''
-          }`} />
+        <div className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${batchOnly ? 'bg-orange-500' : 'bg-[#e5e5ea]'}`}>
+          <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${batchOnly ? 'translate-x-5' : ''}`} />
         </div>
       </div>
 
@@ -99,13 +90,17 @@ export default function RecipeLibrary({ recipes, loading, error, onRefetch }) {
               <div className="p-4">
                 <div className="flex items-start justify-between gap-3 mb-2">
                   <h3 className="font-semibold text-[#1c1c1e] leading-tight">{recipe.name}</h3>
-                  {recipe.batchFriendly && (
-                    <span className="shrink-0 bg-green-100 text-green-600 text-xs font-medium px-2 py-0.5 rounded-full">✓ Batch</span>
-                  )}
+                  <div className="flex gap-1.5 shrink-0">
+                    {recipe.babyAdaptation && <span title="Adaptation bébé disponible">👶</span>}
+                    {recipe.batchFriendly && (
+                      <span className="bg-green-100 text-green-600 text-xs font-medium px-2 py-0.5 rounded-full">✓ Batch</span>
+                    )}
+                  </div>
                 </div>
                 <div className="flex flex-wrap gap-2 text-xs text-[#8e8e93] mb-3">
                   {recipe.category && <span className="bg-[#f2f2f7] px-2.5 py-1 rounded-full">{recipe.category}</span>}
-                  {(recipe.prepTime || recipe.cookTime) && <span>⏱ {(recipe.prepTime || 0) + (recipe.cookTime || 0)} min</span>}
+                  {recipe.prepTime > 0 && <span>🔪 {recipe.prepTime} min</span>}
+                  {recipe.cookTime > 0 && <span>🔥 {recipe.cookTime} min</span>}
                   {recipe.storageDays && <span>🗓 {recipe.storageDays}j</span>}
                 </div>
                 <button

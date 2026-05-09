@@ -3,15 +3,27 @@ import { useBatchStore } from '../store/batchStore';
 import { useBatch } from '../hooks/useBatch';
 import RecipeModal from './RecipeModal';
 
+const OPTION_CHIPS = [
+  { id: 'rapide-prep', label: '⚡ Rapide à faire', hint: 'prép < 15 min' },
+  { id: 'rapide-cuisson', label: '🔥 Rapide à cuire', hint: 'cuisson < 20 min' },
+  { id: 'air-fryer', label: '🌪️ Air fryer', hint: 'cuisson à l\'air fryer' },
+  { id: 'one-pot', label: '🫕 One pot', hint: 'une seule casserole' },
+  { id: 'sans-cuisson', label: '🥗 Sans cuisson', hint: 'pas de cuisson' },
+  { id: 'congelable', label: '❄️ Congélable', hint: 'se congèle parfaitement' },
+  { id: 'bebe', label: '👶 Adapté bébé', hint: 'sans sel, texture douce' },
+  { id: 'vegetarien', label: '🥦 Végétarien', hint: 'sans viande ni poisson' },
+];
+
 const QUICK_PROMPTS = [
-  'Végétarien, facile à congéler',
-  'Rapide, riche en protéines',
-  'Sans gluten, légumes de saison',
-  'Soupe ou ragout qui se réchauffe bien',
+  'Légumes de saison, savoureux',
+  'Riche en protéines',
+  'Sans gluten',
+  'Soupe ou ragout comfort food',
 ];
 
 export default function AISuggestions({ onSaveToNotion }) {
   const [preferences, setPreferences] = useState('');
+  const [selectedOptions, setSelectedOptions] = useState([]);
   const [count, setCount] = useState(2);
   const [selected, setSelected] = useState(null);
   const [saved, setSaved] = useState({});
@@ -20,6 +32,19 @@ export default function AISuggestions({ onSaveToNotion }) {
   const { addEntry, entries } = useBatchStore();
 
   const isInSession = (id) => entries.some((e) => e.recipe.id === id);
+
+  function toggleOption(id) {
+    setSelectedOptions((prev) =>
+      prev.includes(id) ? prev.filter((o) => o !== id) : [...prev, id]
+    );
+  }
+
+  function buildFullPreferences() {
+    const optionHints = OPTION_CHIPS
+      .filter((c) => selectedOptions.includes(c.id))
+      .map((c) => c.hint);
+    return [...optionHints, preferences.trim()].filter(Boolean).join(', ');
+  }
 
   async function handleSave(recipe) {
     if (saved[recipe.id] || saving[recipe.id] || !onSaveToNotion) return;
@@ -34,14 +59,43 @@ export default function AISuggestions({ onSaveToNotion }) {
     }
   }
 
+  const canGenerate = !loading && (selectedOptions.length > 0 || preferences.trim().length > 0);
+
   return (
     <div>
       <div className="bg-white rounded-2xl shadow-sm border border-black/5 p-4 mb-5">
+
+        {/* Option chips */}
+        <p className="text-xs font-semibold text-[#8e8e93] uppercase tracking-wider mb-2">Options</p>
+        <div className="flex flex-wrap gap-2 mb-4">
+          {OPTION_CHIPS.map((chip) => {
+            const active = selectedOptions.includes(chip.id);
+            return (
+              <button
+                key={chip.id}
+                onClick={() => toggleOption(chip.id)}
+                className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-all ${
+                  active
+                    ? 'bg-orange-500 text-white border-orange-500 shadow-sm'
+                    : 'bg-[#f2f2f7] text-[#1c1c1e] border-transparent hover:border-orange-200'
+                }`}
+              >
+                {chip.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Divider */}
+        <div className="border-t border-[#f2f2f7] mb-4" />
+
+        {/* Quick prompts */}
+        <p className="text-xs font-semibold text-[#8e8e93] uppercase tracking-wider mb-2">Inspiration</p>
         <div className="flex flex-wrap gap-2 mb-3">
           {QUICK_PROMPTS.map((p) => (
             <button
               key={p}
-              onClick={() => setPreferences(p)}
+              onClick={() => setPreferences(preferences === p ? '' : p)}
               className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
                 preferences === p
                   ? 'bg-orange-500 text-white border-orange-500'
@@ -51,11 +105,12 @@ export default function AISuggestions({ onSaveToNotion }) {
           ))}
         </div>
 
+        {/* Textarea */}
         <textarea
           value={preferences}
           onChange={(e) => setPreferences(e.target.value)}
-          placeholder="Décrivez vos préférences…"
-          rows={3}
+          placeholder="Décrivez vos préférences supplémentaires…"
+          rows={2}
           className="w-full bg-[#f2f2f7] rounded-xl px-3 py-2.5 text-sm placeholder-[#8e8e93] outline-none resize-none"
         />
 
@@ -73,8 +128,8 @@ export default function AISuggestions({ onSaveToNotion }) {
             ))}
           </div>
           <button
-            onClick={() => generateRecipes(preferences, count)}
-            disabled={loading || !preferences.trim()}
+            onClick={() => generateRecipes(buildFullPreferences(), count)}
+            disabled={!canGenerate}
             className="bg-orange-500 text-white px-5 py-2 rounded-full font-semibold text-sm disabled:opacity-40 transition-opacity"
           >
             {loading ? '⏳ Génération…' : '✨ Générer'}
@@ -92,16 +147,18 @@ export default function AISuggestions({ onSaveToNotion }) {
             <div key={recipe.id} className="bg-white rounded-2xl shadow-sm border border-black/5 p-4">
               <div className="flex items-start justify-between gap-3 mb-2">
                 <h3 className="font-semibold text-[#1c1c1e] leading-tight">{recipe.name}</h3>
-                {recipe.batchFriendly && (
-                  <span className="shrink-0 bg-green-100 text-green-600 text-xs font-medium px-2 py-0.5 rounded-full">Batch ✓</span>
-                )}
+                <div className="flex gap-1.5 shrink-0">
+                  {recipe.babyAdaptation && <span>👶</span>}
+                  {recipe.batchFriendly && (
+                    <span className="bg-green-100 text-green-600 text-xs font-medium px-2 py-0.5 rounded-full">Batch ✓</span>
+                  )}
+                </div>
               </div>
 
               <div className="flex flex-wrap gap-2 text-xs text-[#8e8e93] mb-2">
                 {recipe.category && <span className="bg-[#f2f2f7] px-2.5 py-1 rounded-full">{recipe.category}</span>}
-                {(recipe.prepTime || recipe.cookTime) && (
-                  <span>⏱ {(recipe.prepTime || 0) + (recipe.cookTime || 0)} min</span>
-                )}
+                {recipe.prepTime > 0 && <span>🔪 {recipe.prepTime} min</span>}
+                {recipe.cookTime > 0 && <span>🔥 {recipe.cookTime} min</span>}
                 {recipe.storageDays && <span>🗓 {recipe.storageDays}j {recipe.storageMethod || ''}</span>}
               </div>
 
@@ -118,9 +175,7 @@ export default function AISuggestions({ onSaveToNotion }) {
                   onClick={() => addEntry(recipe)}
                   disabled={isInSession(recipe.id)}
                   className={`flex-1 text-sm py-2.5 rounded-xl font-semibold transition-colors ${
-                    isInSession(recipe.id)
-                      ? 'bg-green-50 text-green-600'
-                      : 'bg-orange-500 text-white'
+                    isInSession(recipe.id) ? 'bg-green-50 text-green-600' : 'bg-orange-500 text-white'
                   }`}
                 >
                   {isInSession(recipe.id) ? '✓ Ajouté' : '+ Session'}

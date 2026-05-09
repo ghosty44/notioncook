@@ -4,7 +4,9 @@ import { useBatchStore } from '../store/batchStore';
 export default function BatchPlanner({ loading }) {
   const { entries, removeEntry, clearSession, peopleCount, setPeopleCount } = useBatchStore();
 
-  const totalTime = entries.reduce((acc, e) => acc + (e.recipe.prepTime || 0) + (e.recipe.cookTime || 0), 0);
+  const totalPrepTime = entries.reduce((acc, e) => acc + (e.recipe.prepTime || 0), 0);
+  const totalCookTime = entries.reduce((acc, e) => acc + (e.recipe.cookTime || 0), 0);
+  const totalTime = totalPrepTime + totalCookTime;
   const hours = Math.floor(totalTime / 60);
   const minutes = totalTime % 60;
   const timeLabel = totalTime === 0 ? '—' : hours > 0 ? `${hours}h${minutes > 0 ? minutes : ''}` : `${minutes}min`;
@@ -47,51 +49,50 @@ export default function BatchPlanner({ loading }) {
       ) : (
         <>
           <div className="space-y-2.5 mb-4">
-            {entries.map((entry) => {
-              const t = (entry.recipe.prepTime || 0) + (entry.recipe.cookTime || 0);
-              return (
-                <div key={entry.recipe.id} className="bg-white rounded-2xl shadow-sm border border-black/5 flex overflow-hidden">
-                  {entry.recipe.imageUrl && (
-                    <img src={entry.recipe.imageUrl} alt={entry.recipe.name} className="w-20 h-20 object-cover shrink-0" />
-                  )}
-                  <div className="flex-1 p-3 min-w-0">
+            {entries.map((entry) => (
+              <div key={entry.recipe.id} className="bg-white rounded-2xl shadow-sm border border-black/5 flex overflow-hidden">
+                {entry.recipe.imageUrl && (
+                  <img src={entry.recipe.imageUrl} alt={entry.recipe.name} className="w-20 h-20 object-cover shrink-0" />
+                )}
+                <div className="flex-1 p-3 min-w-0">
+                  <div className="flex items-start justify-between gap-1">
                     <h3 className="font-semibold text-[#1c1c1e] text-sm leading-tight mb-1 truncate">{entry.recipe.name}</h3>
-                    <div className="flex flex-wrap gap-2 text-xs text-[#8e8e93]">
-                      {t > 0 && <span>⏱ {t} min</span>}
-                      {entry.recipe.batchFriendly && <span className="text-green-600">✓ Batch</span>}
-                      {entry.recipe.storageDays && <span>🗓 {entry.recipe.storageDays}j</span>}
-                    </div>
+                    {entry.recipe.babyAdaptation && <span className="text-sm shrink-0">👶</span>}
                   </div>
-                  <button
-                    onClick={() => removeEntry(entry.recipe.id)}
-                    className="px-4 text-[#c7c7cc] hover:text-red-400 transition-colors text-2xl font-light"
-                  >×</button>
+                  <div className="flex flex-wrap gap-2 text-xs text-[#8e8e93]">
+                    {entry.recipe.prepTime > 0 && <span>🔪 {entry.recipe.prepTime}min</span>}
+                    {entry.recipe.cookTime > 0 && <span>🔥 {entry.recipe.cookTime}min</span>}
+                    {entry.recipe.batchFriendly && <span className="text-green-600">✓ Batch</span>}
+                    {entry.recipe.storageDays && <span>🗓 {entry.recipe.storageDays}j</span>}
+                  </div>
                 </div>
-              );
-            })}
+                <button
+                  onClick={() => removeEntry(entry.recipe.id)}
+                  className="px-4 text-[#c7c7cc] hover:text-red-400 transition-colors text-2xl font-light"
+                >×</button>
+              </div>
+            ))}
           </div>
 
-          {/* Summary */}
           <div className="bg-white rounded-2xl shadow-sm border border-black/5 p-4">
             <p className="text-xs font-semibold text-[#8e8e93] uppercase tracking-wider mb-3">Récapitulatif</p>
-            <div className="grid grid-cols-3 gap-3 mb-3">
+            <div className="grid grid-cols-4 gap-2 mb-3">
               {[
                 { value: entries.length, label: 'recettes' },
-                { value: timeLabel, label: 'estimé' },
+                { value: `${totalPrepTime}min`, label: '🔪 Prep' },
+                { value: `${totalCookTime}min`, label: '🔥 Cuisson' },
                 { value: peopleCount, label: 'personnes' },
               ].map((s) => (
-                <div key={s.label} className="bg-[#f2f2f7] rounded-xl p-3 text-center">
-                  <div className="text-xl font-bold text-[#1c1c1e]">{s.value}</div>
-                  <div className="text-xs text-[#8e8e93]">{s.label}</div>
+                <div key={s.label} className="bg-[#f2f2f7] rounded-xl p-2.5 text-center">
+                  <div className="text-base font-bold text-[#1c1c1e]">{s.value}</div>
+                  <div className="text-[10px] text-[#8e8e93]">{s.label}</div>
                 </div>
               ))}
             </div>
             <button
               onClick={clearSession}
               className="w-full py-2.5 text-red-500 text-sm font-medium rounded-xl border border-red-100 hover:bg-red-50 transition-colors"
-            >
-              Vider la session
-            </button>
+            >Vider la session</button>
           </div>
         </>
       )}
