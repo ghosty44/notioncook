@@ -1,54 +1,33 @@
 import React from 'react';
-import { ChefHat, BookOpen, ShoppingCart, CalendarDays, Sparkles } from 'lucide-react';
-import clsx from 'clsx';
 
-const TAB_ICONS = {
-  planner: CalendarDays,
-  recipes: BookOpen,
-  generator: Sparkles,
-  shopping: ShoppingCart,
-};
-
-export default function Navigation({ tabs, activeTab, onTabChange, recipeCount }) {
+export default function Navigation({ tabs, activeTab, onTabChange, sessionCount }) {
   return (
-    <header className="bg-white border-b border-gray-100 sticky top-0 z-40 shadow-sm">
+    <header className="bg-white shadow-sm sticky top-0 z-10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <div className="flex items-center gap-2">
-            <div className="w-9 h-9 bg-brand-500 rounded-xl flex items-center justify-center shadow-sm">
-              <ChefHat className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <span className="font-bold text-gray-900 text-lg leading-tight">NotionCook</span>
-              {recipeCount > 0 && (
-                <span className="ml-2 text-xs text-gray-400">{recipeCount} recettes</span>
-              )}
-            </div>
-          </div>
-
-          {/* Tabs */}
-          <nav className="flex items-center gap-1">
-            {tabs.map((tab) => {
-              const Icon = TAB_ICONS[tab.id];
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => onTabChange(tab.id)}
-                  className={clsx(
-                    'flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150',
-                    activeTab === tab.id
-                      ? 'bg-brand-50 text-brand-600'
-                      : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'
-                  )}
-                >
-                  {Icon && <Icon className="w-4 h-4" />}
-                  <span className="hidden sm:inline">{tab.label}</span>
-                </button>
-              );
-            })}
-          </nav>
+        <div className="flex items-center gap-3 h-14">
+          <span className="text-2xl">🥗</span>
+          <h1 className="text-xl font-bold text-amber-800">BatchCook</h1>
+          {sessionCount > 0 && (
+            <span className="bg-amber-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+              {sessionCount} recette{sessionCount > 1 ? 's' : ''}
+            </span>
+          )}
         </div>
+        <nav className="flex gap-1 overflow-x-auto pb-1">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => onTabChange(tab.id)}
+              className={`whitespace-nowrap px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+                activeTab === tab.id
+                  ? 'bg-amber-500 text-white'
+                  : 'text-gray-600 hover:text-amber-700 hover:bg-amber-50'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </nav>
       </div>
     </header>
   );

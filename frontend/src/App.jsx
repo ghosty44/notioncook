@@ -1,40 +1,45 @@
 import React, { useState } from 'react';
 import Navigation from './components/Navigation';
-import RecipeList from './components/RecipeList';
-import MealPlanner from './components/MealPlanner';
+import RecipeLibrary from './components/RecipeLibrary';
+import BatchPlanner from './components/BatchPlanner';
 import ShoppingList from './components/ShoppingList';
-import RecipeGenerator from './components/RecipeGenerator';
+import CookingTimeline from './components/CookingTimeline';
+import AISuggestions from './components/AISuggestions';
 import { useRecipes } from './hooks/useRecipes';
+import { useBatchStore } from './store/batchStore';
 
 const TABS = [
-  { id: 'planner', label: 'Planning' },
-  { id: 'recipes', label: 'Mes recettes' },
-  { id: 'generator', label: 'Créer une recette' },
-  { id: 'shopping', label: 'Liste de courses' },
+  { id: 'library', label: '📚 Bibliothèque' },
+  { id: 'planner', label: '🥘 Batch Planner' },
+  { id: 'shopping', label: '🛒 Courses' },
+  { id: 'timeline', label: '⏱ Timeline' },
+  { id: 'ai', label: '✨ Suggestions IA' },
 ];
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('planner');
   const { recipes, loading, error, refetch, saveToNotion } = useRecipes();
+  const sessionCount = useBatchStore((s) => s.entries.length);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-amber-50">
       <Navigation
         tabs={TABS}
         activeTab={activeTab}
         onTabChange={setActiveTab}
-        recipeCount={recipes.length}
+        sessionCount={sessionCount}
       />
 
       <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6">
-        {activeTab === 'planner' && <MealPlanner recipes={recipes} />}
-        {activeTab === 'recipes' && (
-          <RecipeList recipes={recipes} loading={loading} error={error} onRefetch={refetch} />
+        {activeTab === 'library' && (
+          <RecipeLibrary recipes={recipes} loading={loading} error={error} onRefetch={refetch} />
         )}
-        {activeTab === 'generator' && (
-          <RecipeGenerator onSaveToNotion={saveToNotion} />
+        {activeTab === 'planner' && (
+          <BatchPlanner recipes={recipes} loading={loading} />
         )}
-        {activeTab === 'shopping' && <ShoppingList recipes={recipes} />}
+        {activeTab === 'shopping' && <ShoppingList />}
+        {activeTab === 'timeline' && <CookingTimeline />}
+        {activeTab === 'ai' && <AISuggestions onSaveToNotion={saveToNotion} />}
       </main>
     </div>
   );

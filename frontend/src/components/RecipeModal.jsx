@@ -1,98 +1,66 @@
 import React from 'react';
-import { X, Clock, Users, Baby, Tag, ChefHat } from 'lucide-react';
-import clsx from 'clsx';
+import { useBatchStore } from '../store/batchStore';
 
-export default function RecipeModal({ recipe, onClose, onSaveToNotion, isSaving }) {
-  if (!recipe) return null;
-
+export default function RecipeModal({ recipe, onClose }) {
+  const { addEntry, entries } = useBatchStore();
+  const isInSession = entries.some((e) => e.recipe.id === recipe.id);
   const totalTime = (recipe.prepTime || 0) + (recipe.cookTime || 0);
-  const isGemini = recipe.source === 'gemini';
-
-  const ingredientLines = recipe.ingredients
-    ? recipe.ingredients.split('\n').filter((l) => l.trim())
-    : [];
-
-  const instructionLines = recipe.instructions
-    ? recipe.instructions.split('\n').filter((l) => l.trim())
-    : [];
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
-      onClick={onClose}
-    >
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+        className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-start justify-between gap-4 rounded-t-2xl">
-          <div className="flex-1 min-w-0">
-            <h2 className="text-xl font-bold text-gray-900 leading-tight">{recipe.name}</h2>
-            {isGemini && (
-              <span className="inline-flex items-center gap-1 text-xs text-purple-500 mt-0.5">
-                <span>✨</span> Suggestion générée par IA
-              </span>
+        {recipe.imageUrl && (
+          <img src={recipe.imageUrl} alt={recipe.name} className="w-full h-52 object-cover rounded-t-2xl" />
+        )}
+        <div className="p-6">
+          <div className="flex items-start justify-between gap-4 mb-4">
+            <h2 className="text-2xl font-bold text-gray-800">{recipe.name}</h2>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl shrink-0">×</button>
+          </div>
+
+          <div className="flex flex-wrap gap-2 mb-5">
+            {recipe.category && (
+              <span className="bg-amber-100 text-amber-800 text-xs font-medium px-2.5 py-1 rounded-full">{recipe.category}</span>
+            )}
+            {recipe.batchFriendly && (
+              <span className="bg-green-100 text-green-700 text-xs font-medium px-2.5 py-1 rounded-full">✓ Batch-friendly</span>
+            )}
+            {recipe.storageMethod && (
+              <span className="bg-blue-100 text-blue-700 text-xs font-medium px-2.5 py-1 rounded-full">{recipe.storageMethod}</span>
             )}
           </div>
-          <button onClick={onClose} className="btn-ghost p-1.5 shrink-0">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
 
-        {/* Body */}
-        <div className="px-6 py-5 space-y-6">
-          {/* Meta */}
-          <div className="flex flex-wrap gap-4 text-sm text-gray-600">
-            {recipe.prepTime > 0 && (
-              <span className="flex items-center gap-1.5">
-                <Clock className="w-4 h-4 text-brand-500" />
-                Prep : <strong>{recipe.prepTime} min</strong>
-              </span>
-            )}
-            {recipe.cookTime > 0 && (
-              <span className="flex items-center gap-1.5">
-                <ChefHat className="w-4 h-4 text-brand-500" />
-                Cuisson : <strong>{recipe.cookTime} min</strong>
-              </span>
-            )}
+          <div className="grid grid-cols-3 gap-3 mb-6">
             {totalTime > 0 && (
-              <span className="flex items-center gap-1.5 font-medium text-brand-600">
-                Total : {totalTime} min
-              </span>
+              <div className="text-center bg-gray-50 rounded-xl p-3">
+                <div className="text-lg font-bold text-gray-800">{totalTime} min</div>
+                <div className="text-xs text-gray-500">Temps total</div>
+              </div>
             )}
             {recipe.servings && (
-              <span className="flex items-center gap-1.5">
-                <Users className="w-4 h-4 text-brand-500" />
-                <strong>{recipe.servings} personnes</strong>
-              </span>
+              <div className="text-center bg-gray-50 rounded-xl p-3">
+                <div className="text-lg font-bold text-gray-800">{recipe.servings}</div>
+                <div className="text-xs text-gray-500">Portions</div>
+              </div>
+            )}
+            {recipe.storageDays && (
+              <div className="text-center bg-gray-50 rounded-xl p-3">
+                <div className="text-lg font-bold text-gray-800">{recipe.storageDays}j</div>
+                <div className="text-xs text-gray-500">Conservation</div>
+              </div>
             )}
           </div>
 
-          {/* Tags */}
-          {recipe.tags?.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {recipe.category && (
-                <span className="badge-orange">{recipe.category}</span>
-              )}
-              {recipe.tags.map((t) => (
-                <span key={t} className="badge bg-gray-100 text-gray-600">
-                  <Tag className="w-2.5 h-2.5 mr-1" />{t}
-                </span>
-              ))}
-            </div>
-          )}
-
-          {/* Ingredients */}
-          {ingredientLines.length > 0 && (
-            <div>
-              <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">
-                Ingrédients
-              </h3>
-              <ul className="space-y-1.5">
-                {ingredientLines.map((line, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
-                    <span className="w-1.5 h-1.5 rounded-full bg-brand-400 mt-1.5 shrink-0" />
+          {recipe.ingredients && (
+            <div className="mb-5">
+              <h3 className="font-semibold text-gray-700 mb-2">Ingrédients</h3>
+              <ul className="space-y-1">
+                {recipe.ingredients.split('\n').filter(Boolean).map((line, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-gray-600">
+                    <span className="text-amber-500 mt-0.5">•</span>
                     {line.replace(/^[-•*]\s*/, '')}
                   </li>
                 ))}
@@ -100,56 +68,30 @@ export default function RecipeModal({ recipe, onClose, onSaveToNotion, isSaving 
             </div>
           )}
 
-          {/* Instructions */}
-          {instructionLines.length > 0 && (
-            <div>
-              <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">
-                Préparation
-              </h3>
-              <ol className="space-y-3">
-                {instructionLines.map((line, i) => (
-                  <li key={i} className="flex gap-3 text-sm text-gray-700">
-                    <span className="w-6 h-6 rounded-full bg-brand-100 text-brand-700 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+          {recipe.instructions && (
+            <div className="mb-5">
+              <h3 className="font-semibold text-gray-700 mb-2">Instructions</h3>
+              <ol className="space-y-2">
+                {recipe.instructions.split('\n').filter(Boolean).map((line, i) => (
+                  <li key={i} className="flex gap-3 text-sm text-gray-600">
+                    <span className="shrink-0 bg-amber-100 text-amber-700 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">
                       {i + 1}
                     </span>
-                    <span className="leading-relaxed">{line.replace(/^\d+[.)]\s*/, '')}</span>
+                    {line.replace(/^\d+[.)]\s*/, '')}
                   </li>
                 ))}
               </ol>
             </div>
           )}
 
-          {/* Baby adaptation */}
-          {recipe.babyAdaptation && (
-            <div className="bg-green-50 rounded-xl p-4 border border-green-100">
-              <div className="flex items-center gap-2 mb-2">
-                <Baby className="w-4 h-4 text-green-600" />
-                <h3 className="text-sm font-semibold text-green-700">Adaptation bébé</h3>
-              </div>
-              <p className="text-sm text-green-800 leading-relaxed">{recipe.babyAdaptation}</p>
-            </div>
-          )}
-
-          {/* Nutrition notes */}
-          {recipe.nutritionNotes && (
-            <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
-              <h3 className="text-sm font-semibold text-blue-700 mb-1">Notes nutritionnelles</h3>
-              <p className="text-sm text-blue-800">{recipe.nutritionNotes}</p>
-            </div>
-          )}
-
-          {/* Save button for Gemini suggestions */}
-          {isGemini && onSaveToNotion && (
-            <div className="pt-2">
-              <button
-                onClick={() => onSaveToNotion(recipe)}
-                disabled={isSaving}
-                className="btn-primary w-full justify-center"
-              >
-                {isSaving ? 'Sauvegarde en cours…' : '💾 Sauvegarder dans Notion'}
-              </button>
-            </div>
-          )}
+          <button
+            onClick={() => { if (!isInSession) addEntry(recipe, recipe.servings || 4); onClose(); }}
+            className={`w-full py-3 rounded-xl font-semibold transition-colors ${
+              isInSession ? 'bg-green-100 text-green-700' : 'bg-amber-500 text-white hover:bg-amber-600'
+            }`}
+          >
+            {isInSession ? '✓ Déjà dans le batch planner' : '+ Ajouter au batch planner'}
+          </button>
         </div>
       </div>
     </div>
