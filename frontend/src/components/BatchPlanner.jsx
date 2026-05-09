@@ -9,8 +9,9 @@ const PREF_CHIPS = [
   { id: 'sans-gluten', label: '🌾 Sans gluten' },
   { id: 'rapide', label: '⚡ Rapide' },
   { id: 'congelable', label: '❄️ Congélable' },
-  { id: 'economique', label: '💶 Économique' },
+  { id: 'petit-budget', label: '💰 Petit budget' },
   { id: 'one-pot', label: '🫕 One pot' },
+  { id: 'simple', label: '👌 Préparation simple' },
 ];
 
 function getDayCount(start, end) {
