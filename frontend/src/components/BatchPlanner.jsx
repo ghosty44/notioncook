@@ -81,7 +81,7 @@ export default function BatchPlanner() {
   const {
     startDate, endDate, mealPlan, planLoading, planError, planPreferences,
     peopleCount, setPeopleCount, setDateRange, setMealPlan, setPlanLoading,
-    setPlanError, setPlanPreferences, clearMealPlan, updateMeal,
+    setPlanError, setPlanPreferences, clearMealPlan, updateMeal, updateBatchSessionDate,
   } = useBatchStore();
 
   const [activeChips, setActiveChips] = useState([]);
@@ -94,6 +94,7 @@ export default function BatchPlanner() {
   const [loadingPlanId, setLoadingPlanId] = useState(null);
   const [confirmDeletePlanId, setConfirmDeletePlanId] = useState(null);
   const [deletingPlanId, setDeletingPlanId] = useState(null);
+  const [editingBatchDateIndex, setEditingBatchDateIndex] = useState(null);
 
   useEffect(() => {
     setSavedPlan(null);
@@ -114,12 +115,27 @@ export default function BatchPlanner() {
   const today = new Date().toISOString().split('T')[0];
   const todayDay = mealPlan?.days?.find((d) => d.date === today);
 
+  // Check for overlapping plans (excluding exact match which is an upsert)
+  const overlappingPlan = startDate && endDate
+    ? historyPlans.find((p) => {
+        if (!p.startDate || !p.endDate) return false;
+        if (p.startDate === startDate && p.endDate === endDate) return false;
+        return startDate <= p.endDate && endDate >= p.startDate;
+      })
+    : null;
+
   function toggleChip(id) {
     setActiveChips((p) => p.includes(id) ? p.filter((c) => c !== id) : [...p, id]);
   }
 
   async function handleGenerate() {
     if (!canGenerate) return;
+    if (overlappingPlan) {
+      setPlanError(
+        `Ces dates chevauchent le plan « ${overlappingPlan.name} » (${overlappingPlan.startDate} → ${overlappingPlan.endDate}). Supprimez-le d’abord ou choisissez une autre période.`
+      );
+      return;
+    }
     const prefs = activeChips
       .map((id) => PREF_CHIPS.find((c) => c.id === id)?.label.replace(/^[^\s]+\s/, ''))
       .filter(Boolean)
@@ -257,14 +273,37 @@ export default function BatchPlanner() {
             {mealPlan.batchSessions.map((session, i) => (
               <div key={i} className={i > 0 ? 'mt-4 pt-4 border-t border-orange-200' : ''}>
                 <div className="flex items-center justify-between mb-2">
-                  <div>
-                    <p className="text-sm font-bold text-[#1c1c1e]">{session.dayLabel}</p>
+                  <div className="flex-1 min-w-0">
+                    {editingBatchDateIndex === i ? (
+                      <input
+                        type="date"
+                        defaultValue={session.date}
+                        autoFocus
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            updateBatchSessionDate(i, e.target.value);
+                            setEditingBatchDateIndex(null);
+                          }
+                        }}
+                        onBlur={() => setEditingBatchDateIndex(null)}
+                        className="bg-white border border-orange-300 rounded-lg px-2 py-1 text-sm outline-none"
+                      />
+                    ) : (
+                      <button
+                        onClick={() => setEditingBatchDateIndex(i)}
+                        title="Modifier la date de cette session"
+                        className="group flex items-center gap-1.5 text-sm font-bold text-[#1c1c1e]"
+                      >
+                        {session.dayLabel}
+                        <span className="text-[11px] text-[#c7c7cc] group-hover:text-orange-400 transition-colors">✏️</span>
+                      </button>
+                    )}
                     {session.label && session.label !== session.dayLabel && (
-                      <p className="text-xs text-orange-700">{session.label}</p>
+                      <p className="text-xs text-orange-700 mt-0.5">{session.label}</p>
                     )}
                   </div>
                   {session.totalMinutes > 0 && (
-                    <span className="text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full font-semibold">
+                    <span className="text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full font-semibold shrink-0">
                       ⏱ {formatMinutes(session.totalMinutes)}
                     </span>
                   )}
@@ -495,13 +534,21 @@ export default function BatchPlanner() {
         </div>
       )}
 
+      {/* Overlap warning */}
+      {overlappingPlan && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 text-sm text-amber-700">
+          ⚠️ Ces dates chevauchent « {overlappingPlan.name} » ({overlappingPlan.startDate} → {overlappingPlan.endDate}).
+          Supprimez ce plan ou choisissez une autre période.
+        </div>
+      )}
+
       {planError && (
         <div className="bg-red-50 border border-red-100 rounded-2xl p-3 text-sm text-red-600">{planError}</div>
       )}
 
       <button
         onClick={handleGenerate}
-        disabled={!canGenerate}
+        disabled={!canGenerate || !!overlappingPlan}
         className="w-full bg-orange-500 text-white py-4 rounded-2xl font-bold text-[16px] disabled:opacity-40 active:scale-[0.98] transition-all"
       >
         ✨ Générer le plan de repas

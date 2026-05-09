@@ -137,6 +137,25 @@ async function findPlanByDates(startDate, endDate) {
   return response.results[0] || null;
 }
 
+// Returns plans whose date range overlaps [startDate, endDate], excluding exact matches.
+async function findOverlappingPlans(startDate, endDate) {
+  const response = await notion.databases.query({
+    database_id: MEAL_PLANS_DB_ID,
+    filter: {
+      and: [
+        { property: 'DateDébut', date: { on_or_before: endDate } },
+        { property: 'DateFin', date: { on_or_after: startDate } },
+      ],
+    },
+    page_size: 10,
+  });
+  return response.results.filter((p) => {
+    const pStart = p.properties['DateDébut']?.date?.start;
+    const pEnd = p.properties.DateFin?.date?.start;
+    return !(pStart === startDate && pEnd === endDate);
+  });
+}
+
 async function findDayPage(planId, date) {
   const response = await notion.databases.query({
     database_id: DAYS_DB_ID,
@@ -207,6 +226,17 @@ async function deleteMealPlan(planId) {
 async function saveMealPlan({ plan, startDate, endDate, peopleCount, preferences = '' }) {
   if (!MEAL_PLANS_DB_ID || !DAYS_DB_ID) {
     throw new Error('NOTION_MEAL_PLANS_DB_ID ou NOTION_DAYS_DB_ID manquant dans .env');
+  }
+
+  // Block overlapping plans (exact match is allowed — it’s an upsert)
+  const overlaps = await findOverlappingPlans(startDate, endDate);
+  if (overlaps.length > 0) {
+    const name = richTextToString(overlaps[0].properties.Nom?.title) || 'Plan existant';
+    const oStart = overlaps[0].properties['DateDébut']?.date?.start || '';
+    const oEnd = overlaps[0].properties.DateFin?.date?.start || '';
+    throw new Error(
+      `Ces dates chevauchent le plan « ${name} » (${oStart} → ${oEnd}). Supprimez-le d’abord ou choisissez une autre période.`
+    );
   }
 
   const allMeals = plan.days.flatMap((d) => [

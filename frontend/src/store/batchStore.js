@@ -33,6 +33,23 @@ export const useBatchStore = create(
           },
         })),
 
+      updateBatchSessionDate: (index, newDate) =>
+        set((s) => {
+          if (!s.mealPlan?.batchSessions) return s;
+          const raw = new Date(newDate + 'T00:00:00').toLocaleDateString('fr-FR', {
+            weekday: 'long', day: 'numeric', month: 'long',
+          });
+          const dayLabel = raw.charAt(0).toUpperCase() + raw.slice(1);
+          return {
+            mealPlan: {
+              ...s.mealPlan,
+              batchSessions: s.mealPlan.batchSessions.map((session, i) =>
+                i === index ? { ...session, date: newDate, dayLabel } : session
+              ),
+            },
+          };
+        }),
+
       addEntry: (recipe) =>
         set((state) => {
           if (state.entries.some((e) => e.recipe.id === recipe.id)) return state;
