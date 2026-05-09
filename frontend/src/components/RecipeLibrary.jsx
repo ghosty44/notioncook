@@ -20,83 +20,103 @@ export default function RecipeLibrary({ recipes, loading, error, onRefetch }) {
 
   const isInSession = (id) => entries.some((e) => e.recipe.id === id);
 
-  if (loading) return <div className="text-center py-16 text-gray-500">Chargement des recettes…</div>;
+  if (loading) return (
+    <div className="flex flex-col items-center justify-center py-24 gap-3">
+      <div className="w-10 h-10 border-[3px] border-orange-500 border-t-transparent rounded-full animate-spin" />
+      <p className="text-[#8e8e93] text-sm">Chargement…</p>
+    </div>
+  );
+
   if (error) return (
-    <div className="text-center py-16">
-      <p className="text-red-500 mb-4">{error}</p>
-      <button onClick={onRefetch} className="bg-amber-500 text-white px-4 py-2 rounded-lg">Réessayer</button>
+    <div className="text-center py-20">
+      <p className="text-red-500 mb-4 text-sm">{error}</p>
+      <button onClick={onRefetch} className="bg-orange-500 text-white px-6 py-2.5 rounded-full font-semibold text-sm">
+        Réessayer
+      </button>
     </div>
   );
 
   return (
     <div>
-      <div className="flex flex-wrap gap-3 mb-6">
+      {/* Search */}
+      <div className="relative mb-3">
+        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8e8e93] text-sm">🔍</span>
         <input
           type="text"
-          placeholder="Rechercher une recette…"
+          placeholder="Rechercher…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm flex-1 min-w-40 focus:outline-none focus:ring-2 focus:ring-amber-400"
+          className="w-full bg-white rounded-2xl pl-9 pr-4 py-3 text-sm placeholder-[#8e8e93] outline-none shadow-sm border border-black/5"
         />
-        <select
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-        >
-          {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
-        </select>
-        <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={batchOnly}
-            onChange={(e) => setBatchOnly(e.target.checked)}
-            className="accent-amber-500"
-          />
-          <span>Batch-friendly uniquement</span>
-        </label>
       </div>
 
-      <p className="text-sm text-gray-500 mb-4">{filtered.length} recette{filtered.length !== 1 ? 's' : ''}</p>
+      {/* Category pills */}
+      <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1 mb-3">
+        {CATEGORIES.map((c) => (
+          <button
+            key={c}
+            onClick={() => setCategory(c)}
+            className={`whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+              category === c ? 'bg-orange-500 text-white shadow-sm' : 'bg-white text-[#1c1c1e] border border-black/5 shadow-sm'
+            }`}
+          >{c}</button>
+        ))}
+      </div>
+
+      {/* Batch toggle */}
+      <div
+        onClick={() => setBatchOnly(!batchOnly)}
+        className="flex items-center justify-between bg-white rounded-2xl px-4 py-3 mb-5 shadow-sm border border-black/5 cursor-pointer"
+      >
+        <div>
+          <div className="text-sm font-medium text-[#1c1c1e]">Batch-friendly uniquement</div>
+          <div className="text-xs text-[#8e8e93]">Se conserve bien au frigo / congélo</div>
+        </div>
+        <div className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${
+          batchOnly ? 'bg-orange-500' : 'bg-[#e5e5ea]'
+        }`}>
+          <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
+            batchOnly ? 'translate-x-5' : ''
+          }`} />
+        </div>
+      </div>
+
+      <p className="text-xs text-[#8e8e93] mb-3">{filtered.length} recette{filtered.length !== 1 ? 's' : ''}</p>
 
       {filtered.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">Aucune recette trouvée</div>
+        <div className="text-center py-16 text-[#8e8e93]">Aucune recette trouvée</div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="space-y-3">
           {filtered.map((recipe) => (
             <div
               key={recipe.id}
               onClick={() => setSelected(recipe)}
-              className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 cursor-pointer hover:shadow-md transition-shadow"
+              className="bg-white rounded-2xl shadow-sm border border-black/5 overflow-hidden cursor-pointer active:scale-[0.98] transition-transform duration-100"
             >
               {recipe.imageUrl && (
-                <img src={recipe.imageUrl} alt={recipe.name} className="w-full h-36 object-cover rounded-lg mb-3" />
+                <img src={recipe.imageUrl} alt={recipe.name} className="w-full h-44 object-cover" />
               )}
-              <div className="flex items-start justify-between gap-2 mb-2">
-                <h3 className="font-semibold text-gray-800 leading-tight">{recipe.name}</h3>
-                {recipe.batchFriendly && (
-                  <span className="shrink-0 bg-green-100 text-green-700 text-xs font-medium px-2 py-0.5 rounded-full">
-                    Batch ✓
-                  </span>
-                )}
+              <div className="p-4">
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <h3 className="font-semibold text-[#1c1c1e] leading-tight">{recipe.name}</h3>
+                  {recipe.batchFriendly && (
+                    <span className="shrink-0 bg-green-100 text-green-600 text-xs font-medium px-2 py-0.5 rounded-full">✓ Batch</span>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2 text-xs text-[#8e8e93] mb-3">
+                  {recipe.category && <span className="bg-[#f2f2f7] px-2.5 py-1 rounded-full">{recipe.category}</span>}
+                  {(recipe.prepTime || recipe.cookTime) && <span>⏱ {(recipe.prepTime || 0) + (recipe.cookTime || 0)} min</span>}
+                  {recipe.storageDays && <span>🗓 {recipe.storageDays}j</span>}
+                </div>
+                <button
+                  onClick={(e) => { e.stopPropagation(); if (!isInSession(recipe.id)) addEntry(recipe); }}
+                  className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+                    isInSession(recipe.id) ? 'bg-green-50 text-green-600' : 'bg-orange-500 text-white'
+                  }`}
+                >
+                  {isInSession(recipe.id) ? '✓ Dans la session' : '+ Ajouter à la session'}
+                </button>
               </div>
-              <div className="flex flex-wrap gap-2 text-xs text-gray-500 mb-3">
-                {recipe.category && <span className="bg-gray-100 px-2 py-0.5 rounded">{recipe.category}</span>}
-                {recipe.prepTime && <span>⏱ {recipe.prepTime + (recipe.cookTime || 0)} min</span>}
-                {recipe.storageDays && <span>🗓 {recipe.storageDays}j {recipe.storageMethod || ''}</span>}
-              </div>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (!isInSession(recipe.id)) addEntry(recipe, 4);
-                }}
-                className={`w-full text-sm py-1.5 rounded-lg font-medium transition-colors ${
-                  isInSession(recipe.id)
-                    ? 'bg-green-100 text-green-700 cursor-default'
-                    : 'bg-amber-500 text-white hover:bg-amber-600'
-                }`}
-              >
-                {isInSession(recipe.id) ? '✓ Dans le planner' : '+ Ajouter au batch'}
-              </button>
             </div>
           ))}
         </div>

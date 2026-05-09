@@ -5,65 +5,77 @@ import RecipeModal from './RecipeModal';
 
 const QUICK_PROMPTS = [
   'Végétarien, facile à congéler',
-  'Rapide à préparer, riche en protéines',
+  'Rapide, riche en protéines',
   'Sans gluten, légumes de saison',
-  'Soupe ou ragout, se réchauffe bien',
+  'Soupe ou ragout qui se réchauffe bien',
 ];
 
 export default function AISuggestions({ onSaveToNotion }) {
   const [preferences, setPreferences] = useState('');
   const [count, setCount] = useState(2);
   const [selected, setSelected] = useState(null);
+  const [saved, setSaved] = useState({});
+  const [saving, setSaving] = useState({});
   const { generateRecipes, suggestions, loading, error } = useBatch();
-  const { addEntry } = useBatchStore();
+  const { addEntry, entries } = useBatchStore();
+
+  const isInSession = (id) => entries.some((e) => e.recipe.id === id);
+
+  async function handleSave(recipe) {
+    if (saved[recipe.id] || saving[recipe.id] || !onSaveToNotion) return;
+    setSaving((p) => ({ ...p, [recipe.id]: true }));
+    try {
+      await onSaveToNotion(recipe);
+      setSaved((p) => ({ ...p, [recipe.id]: true }));
+    } catch {
+      // silently fail
+    } finally {
+      setSaving((p) => ({ ...p, [recipe.id]: false }));
+    }
+  }
 
   return (
     <div>
-      <div className="mb-6">
-        <h2 className="text-xl font-bold text-gray-800">✨ Suggestions IA</h2>
-        <p className="text-sm text-gray-500 mt-1">Recettes optimisées pour le batch cooking générées par Gemini</p>
-      </div>
-
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 mb-6">
-        <div className="flex flex-wrap gap-2 mb-4">
+      <div className="bg-white rounded-2xl shadow-sm border border-black/5 p-4 mb-5">
+        <div className="flex flex-wrap gap-2 mb-3">
           {QUICK_PROMPTS.map((p) => (
             <button
               key={p}
               onClick={() => setPreferences(p)}
-              className="text-xs border border-amber-200 text-amber-700 px-3 py-1.5 rounded-full hover:bg-amber-50 transition-colors"
-            >
-              {p}
-            </button>
+              className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+                preferences === p
+                  ? 'bg-orange-500 text-white border-orange-500'
+                  : 'border-orange-200 text-orange-600 hover:bg-orange-50'
+              }`}
+            >{p}</button>
           ))}
         </div>
 
         <textarea
           value={preferences}
           onChange={(e) => setPreferences(e.target.value)}
-          placeholder="Décrivez vos préférences : type de cuisine, régime alimentaire, ingrédients disponibles…"
+          placeholder="Décrivez vos préférences…"
           rows={3}
-          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none"
+          className="w-full bg-[#f2f2f7] rounded-xl px-3 py-2.5 text-sm placeholder-[#8e8e93] outline-none resize-none"
         />
 
         <div className="flex items-center justify-between mt-3">
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <span>Nombre :</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-[#8e8e93]">Recettes :</span>
             {[1, 2, 3, 4].map((n) => (
               <button
                 key={n}
                 onClick={() => setCount(n)}
-                className={`w-8 h-8 rounded-lg font-medium transition-colors ${
-                  count === n ? 'bg-amber-500 text-white' : 'border border-gray-200 hover:bg-gray-50'
+                className={`w-7 h-7 rounded-full text-xs font-semibold transition-colors ${
+                  count === n ? 'bg-orange-500 text-white' : 'bg-[#f2f2f7] text-[#1c1c1e]'
                 }`}
-              >
-                {n}
-              </button>
+              >{n}</button>
             ))}
           </div>
           <button
             onClick={() => generateRecipes(preferences, count)}
             disabled={loading || !preferences.trim()}
-            className="bg-amber-500 text-white px-5 py-2 rounded-lg font-medium hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-orange-500 text-white px-5 py-2 rounded-full font-semibold text-sm disabled:opacity-40 transition-opacity"
           >
             {loading ? '⏳ Génération…' : '✨ Générer'}
           </button>
@@ -71,49 +83,62 @@ export default function AISuggestions({ onSaveToNotion }) {
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-4 mb-4 text-sm">{error}</div>
+        <div className="bg-red-50 text-red-600 rounded-2xl p-4 mb-4 text-sm border border-red-100">{error}</div>
       )}
 
       {suggestions.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="space-y-3">
           {suggestions.map((recipe) => (
-            <div key={recipe.id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-              <div className="flex items-start justify-between gap-2 mb-2">
-                <h3 className="font-semibold text-gray-800 leading-tight">{recipe.name}</h3>
+            <div key={recipe.id} className="bg-white rounded-2xl shadow-sm border border-black/5 p-4">
+              <div className="flex items-start justify-between gap-3 mb-2">
+                <h3 className="font-semibold text-[#1c1c1e] leading-tight">{recipe.name}</h3>
                 {recipe.batchFriendly && (
-                  <span className="shrink-0 bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full">Batch ✓</span>
+                  <span className="shrink-0 bg-green-100 text-green-600 text-xs font-medium px-2 py-0.5 rounded-full">Batch ✓</span>
                 )}
               </div>
-              <div className="flex flex-wrap gap-2 text-xs text-gray-500 mb-2">
-                {recipe.category && <span className="bg-gray-100 px-2 py-0.5 rounded">{recipe.category}</span>}
+
+              <div className="flex flex-wrap gap-2 text-xs text-[#8e8e93] mb-2">
+                {recipe.category && <span className="bg-[#f2f2f7] px-2.5 py-1 rounded-full">{recipe.category}</span>}
                 {(recipe.prepTime || recipe.cookTime) && (
                   <span>⏱ {(recipe.prepTime || 0) + (recipe.cookTime || 0)} min</span>
                 )}
                 {recipe.storageDays && <span>🗓 {recipe.storageDays}j {recipe.storageMethod || ''}</span>}
               </div>
+
               {recipe.storageTips && (
-                <p className="text-xs text-gray-500 italic mb-3">{recipe.storageTips}</p>
+                <p className="text-xs text-[#8e8e93] italic mb-3">{recipe.storageTips}</p>
               )}
+
               <div className="flex gap-2">
                 <button
                   onClick={() => setSelected(recipe)}
-                  className="flex-1 text-sm border border-gray-200 py-1.5 rounded-lg hover:bg-gray-50"
-                >
-                  Voir
-                </button>
+                  className="flex-1 text-sm bg-[#f2f2f7] text-[#1c1c1e] py-2.5 rounded-xl font-medium"
+                >Voir</button>
                 <button
-                  onClick={() => addEntry(recipe, recipe.servings || 4)}
-                  className="flex-1 text-sm bg-amber-500 text-white py-1.5 rounded-lg hover:bg-amber-600 font-medium"
+                  onClick={() => addEntry(recipe)}
+                  disabled={isInSession(recipe.id)}
+                  className={`flex-1 text-sm py-2.5 rounded-xl font-semibold transition-colors ${
+                    isInSession(recipe.id)
+                      ? 'bg-green-50 text-green-600'
+                      : 'bg-orange-500 text-white'
+                  }`}
                 >
-                  + Batch
+                  {isInSession(recipe.id) ? '✓ Ajouté' : '+ Session'}
                 </button>
                 {onSaveToNotion && (
                   <button
-                    onClick={() => onSaveToNotion(recipe)}
-                    className="text-sm border border-blue-200 text-blue-600 px-3 py-1.5 rounded-lg hover:bg-blue-50"
-                    title="Sauvegarder dans Notion"
+                    onClick={() => handleSave(recipe)}
+                    disabled={saved[recipe.id] || saving[recipe.id]}
+                    title={saved[recipe.id] ? 'Sauvegardé dans Notion' : 'Sauvegarder dans Notion'}
+                    className={`w-11 h-10 rounded-xl flex items-center justify-center text-sm transition-all ${
+                      saved[recipe.id]
+                        ? 'bg-green-500 text-white'
+                        : saving[recipe.id]
+                        ? 'bg-[#f2f2f7] text-[#8e8e93]'
+                        : 'bg-[#f2f2f7] text-[#8e8e93] hover:bg-blue-50 hover:text-blue-500'
+                    }`}
                   >
-                    💾
+                    {saving[recipe.id] ? '…' : saved[recipe.id] ? '✓' : '💾'}
                   </button>
                 )}
               </div>

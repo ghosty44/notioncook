@@ -2,33 +2,41 @@ import React from 'react';
 
 export default function Navigation({ tabs, activeTab, onTabChange, sessionCount }) {
   return (
-    <header className="bg-white shadow-sm sticky top-0 z-10">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="flex items-center gap-3 h-14">
-          <span className="text-2xl">🥗</span>
-          <h1 className="text-xl font-bold text-amber-800">BatchCook</h1>
-          {sessionCount > 0 && (
-            <span className="bg-amber-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
-              {sessionCount} recette{sessionCount > 1 ? 's' : ''}
-            </span>
-          )}
-        </div>
-        <nav className="flex gap-1 overflow-x-auto pb-1">
-          {tabs.map((tab) => (
+    <nav className="fixed bottom-0 left-0 right-0 z-20 bg-white/75 backdrop-blur-xl border-t border-black/8">
+      <div className="max-w-2xl mx-auto flex items-center justify-around px-2 pt-2 pb-safe">
+        {tabs.map((tab) => {
+          const isActive = activeTab === tab.id;
+          const showBadge = tab.id === 'planner' && sessionCount > 0;
+          return (
             <button
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
-              className={`whitespace-nowrap px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
-                activeTab === tab.id
-                  ? 'bg-amber-500 text-white'
-                  : 'text-gray-600 hover:text-amber-700 hover:bg-amber-50'
-              }`}
+              className="flex flex-col items-center gap-1 py-1 px-3 flex-1 relative transition-opacity"
             >
-              {tab.label}
+              <div className="relative">
+                <span
+                  className={`text-[26px] block transition-all duration-150 ${
+                    isActive ? '' : 'opacity-40'
+                  }`}
+                  style={isActive ? { filter: 'drop-shadow(0 1px 4px rgba(249,115,22,0.3))' } : {}}
+                >
+                  {tab.icon}
+                </span>
+                {showBadge && (
+                  <span className="absolute -top-1 -right-2 bg-orange-500 text-white text-[9px] font-bold min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center">
+                    {sessionCount}
+                  </span>
+                )}
+              </div>
+              <span className={`text-[10px] font-medium transition-colors ${
+                isActive ? 'text-orange-500' : 'text-[#8e8e93]'
+              }`}>
+                {tab.label}
+              </span>
             </button>
-          ))}
-        </nav>
+          );
+        })}
       </div>
-    </header>
+    </nav>
   );
 }

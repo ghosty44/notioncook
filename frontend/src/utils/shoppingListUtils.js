@@ -34,8 +34,8 @@ const CATEGORY_KEYWORDS = {
 
 function categorizeIngredient(line) {
   const lower = line.toLowerCase();
-  for (const [category, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
-    if (keywords.some((kw) => lower.includes(kw))) return category;
+  for (const [cat, kws] of Object.entries(CATEGORY_KEYWORDS)) {
+    if (kws.some((kw) => lower.includes(kw))) return cat;
   }
   return 'Divers';
 }
@@ -44,54 +44,46 @@ function parseIngredientLines(text) {
   if (!text) return [];
   return text
     .split('\n')
-    .map((line) => line.replace(/^[-•*\d.)\s]+/, '').trim())
-    .filter((line) => line.length > 2);
+    .map((l) => l.replace(/^[-•*\d.)\s]+/, '').trim())
+    .filter((l) => l.length > 2);
 }
 
-export function generateShoppingList(entries) {
+export function generateShoppingList(entries, peopleCount = 4) {
   const categorized = {};
 
-  entries.forEach(({ recipe, servings }) => {
-    const multiplier = servings / (recipe.servings || 4);
+  entries.forEach(({ recipe }) => {
+    const multiplier = peopleCount / (recipe.servings || 1);
     const lines = parseIngredientLines(recipe.ingredients);
 
     lines.forEach((line) => {
-      const category = categorizeIngredient(line);
-      if (!categorized[category]) categorized[category] = [];
+      const cat = categorizeIngredient(line);
+      if (!categorized[cat]) categorized[cat] = [];
 
       const key = line.toLowerCase().split(' ').slice(-3).join(' ');
-      const existing = categorized[category].find((i) => i.key === key);
+      const existing = categorized[cat].find((i) => i.key === key);
 
       if (existing) {
         existing.count += multiplier;
         if (!existing.sources.includes(recipe.name)) existing.sources.push(recipe.name);
       } else {
-        categorized[category].push({
-          key,
-          text: line,
-          count: multiplier,
-          sources: [recipe.name],
-          checked: false,
-        });
+        categorized[cat].push({ key, text: line, count: multiplier, sources: [recipe.name] });
       }
     });
   });
 
-  const categoryOrder = [
+  const ORDER = [
     'Légumes & Fruits', 'Viandes & Poissons', 'Produits laitiers & Œufs',
     'Féculents & Céréales', 'Épicerie & Condiments', 'Boissons', 'Divers',
   ];
-
   const sorted = {};
-  categoryOrder.forEach((cat) => {
+  ORDER.forEach((cat) => {
     if (categorized[cat]?.length) sorted[cat] = categorized[cat].sort((a, b) => a.text.localeCompare(b.text));
   });
   Object.keys(categorized).forEach((cat) => { if (!sorted[cat]) sorted[cat] = categorized[cat]; });
-
   return sorted;
 }
 
 export function formatIngredientLine(item) {
   const mult = Math.round(item.count * 10) / 10;
-  return item.count === 1 ? item.text : `${item.text} (×${mult})`;
+  return mult === 1 ? item.text : `${item.text} (×${mult})`;
 }
