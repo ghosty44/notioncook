@@ -1,28 +1,31 @@
-# 🍽️ NotionCook — Recettes & Planning de repas
+# 🥗 BatchCook — App de Batch Cooking
 
-Application web complète de gestion de recettes et de planification de repas, connectée à **Notion** et **Google Gemini**.
+Application web complète de batch cooking : planifiez vos sessions de cuisine en grande quantité, générez vos listes de courses, organisez l'ordre de préparation et obtenez des suggestions IA.
+
+Connectée à **Notion** (recettes) et **Google Gemini** (suggestions IA).
 
 ## Fonctionnalités
 
-| Module | Description |
+| Onglet | Description |
 |---|---|
-| 📚 **Mes recettes** | Lecture et recherche de vos recettes Notion |
-| ✨ **Suggestions IA** | Génération de nouvelles recettes via Gemini, avec adaptation bébé |
-| 📅 **Planning** | Agenda hebdomadaire avec drag & drop, indicateur bébé par repas |
-| 🛒 **Liste de courses** | Générée automatiquement, regroupée par catégorie, cochable, exportable |
+| 📚 **Bibliothèque** | Parcourir et rechercher vos recettes Notion, filtrer par batch-friendly |
+| 🥘 **Batch Planner** | Sélectionner les recettes + ajuster les portions pour la session |
+| 🛒 **Liste de courses** | Générée automatiquement, regroupée par catégorie, cochable, copiable |
+| ⏱ **Timeline** | Ordre de préparation optimisé + minuteurs interactifs par recette |
+| ✨ **Suggestions IA** | Recettes adaptées au batch cooking générées par Gemini |
 
 ---
 
 ## Structure du projet
 
 ```
-notioncook/
+batchcook/
 ├── backend/                  # API Express (Node.js)
 │   ├── server.js
 │   ├── routes/
-│   │   ├── notion.js         # CRUD recettes Notion
-│   │   ├── gemini.js         # Génération de suggestions IA
-│   │   └── meals.js          # Planning (in-memory)
+│   │   ├── notion.js         # CRUD recettes Notion (avec champs batch)
+│   │   ├── gemini.js         # Génération recettes batch cooking
+│   │   └── session.js        # Session batch (in-memory)
 │   ├── services/
 │   │   ├── notionService.js  # Client Notion API
 │   │   └── geminiService.js  # Client Gemini API
@@ -34,25 +37,21 @@ notioncook/
     │   ├── App.jsx
     │   ├── components/
     │   │   ├── Navigation.jsx
-    │   │   ├── RecipeList.jsx
-    │   │   ├── RecipeCard.jsx
-    │   │   ├── RecipeModal.jsx
-    │   │   ├── MealPlanner.jsx       # Calendrier avec DnD
-    │   │   ├── MealSlot.jsx          # Cellule droppable/draggable
-    │   │   ├── RecipePickerModal.jsx # Sélecteur de recette
-    │   │   ├── GeminiSuggestions.jsx
-    │   │   └── ShoppingList.jsx
+    │   │   ├── RecipeLibrary.jsx     # Grille de recettes avec filtres
+    │   │   ├── RecipeModal.jsx       # Détail d'une recette
+    │   │   ├── BatchPlanner.jsx      # Sélection recettes + portions
+    │   │   ├── ShoppingList.jsx      # Liste de courses agregée
+    │   │   ├── CookingTimeline.jsx   # Ordre de prép + minuteurs
+    │   │   └── AISuggestions.jsx     # Générateur Gemini
     │   ├── hooks/
     │   │   ├── useRecipes.js
-    │   │   └── useGemini.js
+    │   │   └── useBatch.js
     │   ├── store/
-    │   │   └── mealPlanStore.js      # Zustand (persist localStorage)
+    │   │   └── batchStore.js         # Zustand (persist localStorage)
     │   └── utils/
     │       ├── api.js
-    │       ├── dateUtils.js
-    │       └── shoppingListUtils.js
-    ├── tailwind.config.js
-    ├── vite.config.js
+    │       ├── shoppingListUtils.js
+    │       └── timelineUtils.js
     └── package.json
 ```
 
@@ -66,9 +65,9 @@ notioncook/
 
 ---
 
-## 1. Préparer la base de données Notion
+## 1. Base de données Notion
 
-Créez une base de données Notion avec les propriétés suivantes (les types sont importants) :
+Créez (ou adaptez) une base de données Notion avec ces propriétés :
 
 | Propriété | Type Notion |
 |---|---|
@@ -79,36 +78,21 @@ Créez une base de données Notion avec les propriétés suivantes (les types so
 | `CookTime` | Number (minutes) |
 | `Servings` | Number |
 | `Tags` | Multi-select |
-| `Category` | Select (`Petit-déjeuner`, `Déjeuner`, `Dîner`, `Snack`, `Dessert`, `Autre`) |
-| `BabyAdaptation` | Rich Text |
-
-Puis :
-1. Allez sur [notion.so/my-integrations](https://www.notion.so/my-integrations) → créez une intégration
-2. Copiez la **clé secrète** (`secret_xxx…`)
-3. Ouvrez votre base de recettes → **…** → **Connections** → ajoutez votre intégration
-4. Copiez l'**ID de la base** depuis l'URL : `notion.so/{workspace}/{DATABASE_ID}?v=…`
+| `Category` | Select (`Déjeuner`, `Dîner`, `Petit-déjeuner`, `Snack`, `Dessert`, `Soupe`, `Salade`, `Autre`) |
+| `BatchFriendly` | **Checkbox** — se conserve bien, adapté au batch |
+| `StorageDays` | Number — jours de conservation |
+| `StorageMethod` | Select — `Frigo` / `Congélateur` / `Température ambiante` |
 
 ---
 
-## 2. Obtenir une clé Gemini
-
-1. Allez sur [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)
-2. Cliquez **Create API key**
-3. Copiez la clé (`AIzaSy…`)
-
----
-
-## 3. Installation
+## 2. Installation
 
 ### Backend
 
 ```bash
 cd backend
 cp .env.example .env
-# Éditez .env avec vos clés :
-#   NOTION_API_KEY=secret_xxx
-#   NOTION_DATABASE_ID=xxx
-#   GEMINI_API_KEY=AIzaSy...
+# Éditez .env avec vos clés
 npm install
 npm run dev
 # → http://localhost:3001
@@ -125,60 +109,52 @@ npm run dev
 
 ---
 
-## 4. Utilisation
-
-### Planning de repas
-- Naviguez entre les semaines avec **←** / **→**
-- Cliquez **+** dans un créneau pour choisir une recette depuis votre bibliothèque
-- **Glissez-déposez** une recette d'un créneau à un autre
-- Cliquez l'icône 👶 sur un repas pour activer l'adaptation bébé
-
-### Suggestions IA
-- Entrez des préférences (ex: "végétarien", "rapide", "sans gluten")
-- Choisissez un type de repas et le nombre de suggestions
-- Cliquez **Voir la recette** pour le détail complet
-- Cliquez **💾 Notion** pour sauvegarder directement dans votre base
-
-### Liste de courses
-- Sélectionnez une période de dates
-- La liste est générée depuis les repas planifiés
-- Cochez les articles au fur et à mesure
-- Utilisez **Copier** ou **Imprimer** pour exporter
-
----
-
-## Variables d'environnement (backend)
+## 3. Variables d'environnement (backend)
 
 | Variable | Description |
 |---|---|
 | `NOTION_API_KEY` | Clé secrète de votre intégration Notion |
 | `NOTION_DATABASE_ID` | ID de votre base de données Notion |
 | `GEMINI_API_KEY` | Clé API Google Gemini |
-| `PORT` | Port du serveur (défaut : 3001) |
-| `FRONTEND_URL` | URL du frontend pour CORS (défaut : http://localhost:5173) |
+| `PORT` | Port du serveur (défaut : 3001) |
+| `FRONTEND_URL` | URL du frontend pour CORS (défaut : http://localhost:5173) |
 
 ---
 
-## Développement
+## 4. Utilisation
 
-```bash
-# Backend avec hot-reload
-cd backend && npm run dev
+### Bibliothèque
+- Parcourez vos recettes Notion
+- Filtrez par catégorie ou cochez "Batch-friendly uniquement"
+- Cliquez sur une carte pour voir les détails
+- Cliquez **+ Ajouter au batch** pour l'ajouter à votre session
 
-# Frontend avec HMR
-cd frontend && npm run dev
+### Batch Planner
+- Visualisez toutes les recettes de la session
+- Ajustez les portions pour chaque recette (2 à 12 portions)
+- Consultez le récapitulatif (temps total, nombre de portions)
 
-# Build de production
-cd frontend && npm run build
-```
+### Liste de courses
+- Générée automatiquement depuis les recettes de la session
+- Les ingrédients sont agrégés et multipliés selon les portions
+- Cochez les articles au fur et à mesure
+- Copiez ou imprimez la liste
 
-Le frontend proxifie automatiquement les requêtes `/api/*` vers le backend (configuré dans `vite.config.js`).
+### Timeline de cuisson
+- Ordre optimisé : les recettes à cuisson passive (four, mijotage) sont lancées en premier
+- Les tâches parallélisables sont identifiées
+- Minuteurs interactifs avec pause/reprise/réinitialisation
+
+### Suggestions IA
+- Utilisez les prompts rapides ou décrivez vos préférences
+- Choisissez le nombre de suggestions (1–4)
+- Ajoutez directement au batch planner ou sauvegardez dans Notion
 
 ---
 
 ## Architecture
 
-- **État du planning** : persisté en `localStorage` via Zustand `persist` middleware — pas besoin de base de données pour le MVP
-- **Drag & drop** : `@dnd-kit/core` avec `PointerSensor` (fonctionne souris + tactile)
-- **Notion** : toutes les requêtes passent par le backend (les clés ne sont jamais exposées côté client)
-- **Gemini** : prompt structuré JSON pour garantir un format cohérent des recettes générées
+- **Session batch** : persistée en `localStorage` via Zustand `persist`
+- **Notion** : toutes les requêtes passent par le backend (clés jamais exposées côté client)
+- **Gemini** : prompt structuré JSON orienté batch cooking (conservation, quantités, réchauffage)
+- **Timeline** : tri par ratio cuisson/préparation pour maximiser l'efficacité de la session
