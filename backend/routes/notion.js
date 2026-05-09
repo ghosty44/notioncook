@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getAllRecipes, getRecipeById, createRecipe, searchRecipes } = require('../services/notionService');
+const { getAllRecipes, getRecipeById, createRecipe, searchRecipes, saveMealPlan } = require('../services/notionService');
 
 router.get('/recipes', async (_req, res, next) => {
   try { res.json(await getAllRecipes()); } catch (err) { next(err); }
@@ -34,6 +34,16 @@ router.post('/recipes', async (req, res, next) => {
       babyAdaptation: babyAdaptation || '',
     });
     res.status(201).json(created);
+  } catch (err) { next(err); }
+});
+
+router.post('/meal-plan', async (req, res, next) => {
+  try {
+    const { plan, startDate, endDate, peopleCount, preferences } = req.body;
+    if (!plan?.days?.length) return res.status(400).json({ error: 'Plan invalide' });
+    if (!startDate || !endDate) return res.status(400).json({ error: 'Dates requises' });
+    const result = await saveMealPlan({ plan, startDate, endDate, peopleCount: peopleCount || 1, preferences: preferences || '' });
+    res.status(201).json(result);
   } catch (err) { next(err); }
 });
 

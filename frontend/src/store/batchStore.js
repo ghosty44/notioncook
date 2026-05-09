@@ -10,6 +10,7 @@ export const useBatchStore = create(
       mealPlan: null,
       planLoading: false,
       planError: null,
+      planPreferences: '',
 
       // Manual session (RecipeLibrary fallback)
       entries: [],
@@ -19,7 +20,8 @@ export const useBatchStore = create(
       setMealPlan: (plan) => set({ mealPlan: plan, planLoading: false, planError: null }),
       setPlanLoading: (v) => set({ planLoading: v }),
       setPlanError: (e) => set({ planError: e, planLoading: false }),
-      clearMealPlan: () => set({ mealPlan: null, planError: null }),
+      setPlanPreferences: (v) => set({ planPreferences: v }),
+      clearMealPlan: () => set({ mealPlan: null, planError: null, planPreferences: '' }),
 
       addEntry: (recipe) =>
         set((state) => {

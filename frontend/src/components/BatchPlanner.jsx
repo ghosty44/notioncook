@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useBatchStore } from '../store/batchStore';
 import api from '../utils/api';
 
@@ -67,11 +67,21 @@ function MealRow({ meal, icon, label }) {
 
 export default function BatchPlanner() {
   const {
-    startDate, endDate, mealPlan, planLoading, planError,
-    peopleCount, setPeopleCount, setDateRange, setMealPlan, setPlanLoading, setPlanError, clearMealPlan,
+    startDate, endDate, mealPlan, planLoading, planError, planPreferences,
+    peopleCount, setPeopleCount, setDateRange, setMealPlan, setPlanLoading,
+    setPlanError, setPlanPreferences, clearMealPlan,
   } = useBatchStore();
 
   const [activeChips, setActiveChips] = useState([]);
+  const [saving, setSaving] = useState(false);
+  const [savedPlan, setSavedPlan] = useState(null);
+  const [saveError, setSaveError] = useState(null);
+
+  // Reset save state when plan changes
+  useEffect(() => {
+    setSavedPlan(null);
+    setSaveError(null);
+  }, [mealPlan]);
 
   const dayCount = getDayCount(startDate, endDate);
   const canGenerate = startDate && endDate && dayCount >= 1 && dayCount <= 14;
@@ -86,6 +96,7 @@ export default function BatchPlanner() {
       .map((id) => PREF_CHIPS.find((c) => c.id === id)?.label.replace(/^[^\s]+\s/, ''))
       .filter(Boolean)
       .join(', ');
+    setPlanPreferences(prefs);
     setPlanLoading(true);
     setPlanError(null);
     try {
@@ -93,6 +104,26 @@ export default function BatchPlanner() {
       setMealPlan(plan);
     } catch (err) {
       setPlanError(err.message || 'Erreur lors de la génération');
+    }
+  }
+
+  async function handleSave() {
+    if (saving || savedPlan) return;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const result = await api.post('/notion/meal-plan', {
+        plan: mealPlan,
+        startDate,
+        endDate,
+        peopleCount,
+        preferences: planPreferences,
+      });
+      setSavedPlan(result);
+    } catch (err) {
+      setSaveError(err.message || 'Erreur lors de l’enregistrement');
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -179,6 +210,38 @@ export default function BatchPlanner() {
             <MealRow meal={day.dinner} icon="🌙" label="Soir" />
           </div>
         ))}
+
+        {/* Save to Notion */}
+        <div className="pt-2">
+          {savedPlan ? (
+            <a
+              href={savedPlan.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full bg-green-500 text-white py-3.5 rounded-2xl font-semibold text-[15px] flex items-center justify-center gap-2"
+            >
+              ✓ Enregistré — Voir dans Notion ↗
+            </a>
+          ) : (
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="w-full bg-[#1c1c1e] text-white py-3.5 rounded-2xl font-semibold text-[15px] disabled:opacity-50 flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
+            >
+              {saving ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Enregistrement dans Notion…
+                </>
+              ) : (
+                '💾 Enregistrer dans Notion'
+              )}
+            </button>
+          )}
+          {saveError && (
+            <p className="text-xs text-red-500 text-center mt-2">{saveError}</p>
+          )}
+        </div>
       </div>
     );
   }
@@ -186,7 +249,6 @@ export default function BatchPlanner() {
   // ── Setup form ──────────────────────────────────────────
   return (
     <div className="space-y-4">
-      {/* Date range */}
       <div className="bg-white rounded-2xl shadow-sm border border-black/5 p-4">
         <h2 className="text-[15px] font-semibold text-[#1c1c1e] mb-4">Période du plan</h2>
         <div className="space-y-3">
@@ -224,7 +286,6 @@ export default function BatchPlanner() {
         )}
       </div>
 
-      {/* People count */}
       <div className="bg-white rounded-2xl shadow-sm border border-black/5 p-4 flex items-center justify-between">
         <div>
           <p className="text-[15px] font-semibold text-[#1c1c1e]">Nombre de personnes</p>
@@ -237,7 +298,6 @@ export default function BatchPlanner() {
         </div>
       </div>
 
-      {/* Preference chips */}
       <div className="bg-white rounded-2xl shadow-sm border border-black/5 p-4">
         <p className="text-[11px] font-semibold text-[#8e8e93] uppercase tracking-wider mb-3">Préférences</p>
         <div className="flex flex-wrap gap-2">
@@ -246,9 +306,7 @@ export default function BatchPlanner() {
               key={chip.id}
               onClick={() => toggleChip(chip.id)}
               className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                activeChips.includes(chip.id)
-                  ? 'bg-orange-500 text-white'
-                  : 'bg-[#f2f2f7] text-[#3a3a3c]'
+                activeChips.includes(chip.id) ? 'bg-orange-500 text-white' : 'bg-[#f2f2f7] text-[#3a3a3c]'
               }`}
             >
               {chip.label}
