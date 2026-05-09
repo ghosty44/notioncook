@@ -179,6 +179,31 @@ async function getMealPlanById(planId) {
   return JSON.parse(jsonText);
 }
 
+async function deleteRecipe(pageId) {
+  await notion.pages.update({ page_id: pageId, archived: true });
+}
+
+async function deleteMealPlan(planId) {
+  if (DAYS_DB_ID) {
+    let hasMore = true;
+    let startCursor = undefined;
+    while (hasMore) {
+      const response = await notion.databases.query({
+        database_id: DAYS_DB_ID,
+        filter: { property: 'Plan', relation: { contains: planId } },
+        start_cursor: startCursor,
+        page_size: 100,
+      });
+      for (const day of response.results) {
+        await notion.pages.update({ page_id: day.id, archived: true });
+      }
+      hasMore = response.has_more;
+      startCursor = response.next_cursor;
+    }
+  }
+  await notion.pages.update({ page_id: planId, archived: true });
+}
+
 async function saveMealPlan({ plan, startDate, endDate, peopleCount, preferences = '' }) {
   if (!MEAL_PLANS_DB_ID || !DAYS_DB_ID) {
     throw new Error('NOTION_MEAL_PLANS_DB_ID ou NOTION_DAYS_DB_ID manquant dans .env');
@@ -271,4 +296,5 @@ async function saveMealPlan({ plan, startDate, endDate, peopleCount, preferences
 module.exports = {
   getAllRecipes, getRecipeById, createRecipe, searchRecipes,
   saveMealPlan, getMealPlans, getMealPlanById,
+  deleteRecipe, deleteMealPlan,
 };

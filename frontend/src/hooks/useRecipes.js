@@ -25,7 +25,12 @@ export function useRecipes() {
     return saved;
   }
 
+  async function deleteRecipeById(id) {
+    await api.delete(`/notion/recipes/${id}`);
+    setRecipes((prev) => prev.filter((r) => r.id !== id));
+  }
+
   useEffect(() => { fetchRecipes(); }, []);
 
-  return { recipes, loading, error, refetch: fetchRecipes, saveToNotion };
+  return { recipes, loading, error, refetch: fetchRecipes, saveToNotion, deleteRecipeById };
 }

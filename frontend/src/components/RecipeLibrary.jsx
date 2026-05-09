@@ -4,11 +4,13 @@ import RecipeModal from './RecipeModal';
 
 const CATEGORIES = ['Toutes', 'Déjeuner', 'Dîner', 'Petit-déjeuner', 'Soupe', 'Salade', 'Snack', 'Dessert', 'Autre'];
 
-export default function RecipeLibrary({ recipes, loading, error, onRefetch }) {
+export default function RecipeLibrary({ recipes, loading, error, onRefetch, onDeleteRecipe }) {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('Toutes');
   const [batchOnly, setBatchOnly] = useState(false);
   const [selected, setSelected] = useState(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
   const { addEntry, entries } = useBatchStore();
 
   const filtered = recipes.filter((r) => {
@@ -19,6 +21,18 @@ export default function RecipeLibrary({ recipes, loading, error, onRefetch }) {
   });
 
   const isInSession = (id) => entries.some((e) => e.recipe.id === id);
+
+  async function handleDelete(e, recipeId) {
+    e.stopPropagation();
+    if (!onDeleteRecipe) return;
+    setDeletingId(recipeId);
+    setConfirmDeleteId(null);
+    try {
+      await onDeleteRecipe(recipeId);
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   if (loading) return (
     <div className="flex flex-col items-center justify-center py-24 gap-3">
@@ -90,11 +104,39 @@ export default function RecipeLibrary({ recipes, loading, error, onRefetch }) {
               )}
               <div className="p-4">
                 <div className="flex items-start justify-between gap-3 mb-2">
-                  <h3 className="font-semibold text-[#1c1c1e] leading-tight">{recipe.name}</h3>
-                  <div className="flex gap-1.5 shrink-0">
+                  <h3 className="font-semibold text-[#1c1c1e] leading-tight flex-1">{recipe.name}</h3>
+                  <div className="flex items-center gap-1.5 shrink-0">
                     {recipe.babyAdaptation && <span title="Adaptation bébé disponible">👶</span>}
                     {recipe.batchFriendly && (
                       <span className="bg-green-100 text-green-600 text-xs font-medium px-2 py-0.5 rounded-full">✓ Batch</span>
+                    )}
+                    {onDeleteRecipe && (
+                      confirmDeleteId === recipe.id ? (
+                        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            onClick={(e) => handleDelete(e, recipe.id)}
+                            disabled={deletingId === recipe.id}
+                            className="text-[11px] bg-red-500 text-white px-2 py-0.5 rounded-full font-semibold leading-5"
+                          >
+                            {deletingId === recipe.id ? '…' : 'Oui'}
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(null); }}
+                            className="text-[11px] bg-[#f2f2f7] text-[#3a3a3c] px-2 py-0.5 rounded-full font-semibold leading-5"
+                          >
+                            Non
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(recipe.id); }}
+                          disabled={deletingId === recipe.id}
+                          title="Supprimer de Notion"
+                          className="text-[#c7c7cc] text-base hover:text-red-400 transition-colors disabled:opacity-40"
+                        >
+                          🗑️
+                        </button>
+                      )
                     )}
                   </div>
                 </div>

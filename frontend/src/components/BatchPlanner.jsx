@@ -92,6 +92,8 @@ export default function BatchPlanner() {
   const [historyPlans, setHistoryPlans] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [loadingPlanId, setLoadingPlanId] = useState(null);
+  const [confirmDeletePlanId, setConfirmDeletePlanId] = useState(null);
+  const [deletingPlanId, setDeletingPlanId] = useState(null);
 
   useEffect(() => {
     setSavedPlan(null);
@@ -174,6 +176,19 @@ export default function BatchPlanner() {
       // silently fail
     } finally {
       setLoadingPlanId(null);
+    }
+  }
+
+  async function handleDeletePlan(planId) {
+    setDeletingPlanId(planId);
+    try {
+      await api.delete(`/notion/meal-plans/${planId}`);
+      setHistoryPlans((prev) => prev.filter((p) => p.id !== planId));
+    } catch {
+      // silently fail
+    } finally {
+      setDeletingPlanId(null);
+      setConfirmDeletePlanId(null);
     }
   }
 
@@ -298,14 +313,29 @@ export default function BatchPlanner() {
         {/* Save to Notion */}
         <div className="pt-2">
           {savedPlan ? (
-            <a
-              href={savedPlan.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full bg-green-500 text-white py-3.5 rounded-2xl font-semibold text-[15px] flex items-center justify-center gap-2"
-            >
-              ✓ Enregistré — Voir dans Notion ↗
-            </a>
+            <div className="space-y-2">
+              <a
+                href={savedPlan.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full bg-green-500 text-white py-3.5 rounded-2xl font-semibold text-[15px] flex items-center justify-center gap-2"
+              >
+                ✓ Enregistré — Voir dans Notion ↗
+              </a>
+              <button
+                onClick={async () => {
+                  if (!window.confirm('Supprimer ce plan de Notion ?')) return;
+                  try {
+                    await api.delete(`/notion/meal-plans/${savedPlan.id}`);
+                    setSavedPlan(null);
+                    clearMealPlan();
+                  } catch { /* silently fail */ }
+                }}
+                className="w-full bg-[#f2f2f7] text-red-500 py-2.5 rounded-2xl font-semibold text-sm"
+              >
+                🗑️ Supprimer de Notion
+              </button>
+            </div>
           ) : (
             <button
               onClick={handleSave}
@@ -412,22 +442,53 @@ export default function BatchPlanner() {
           ) : (
             <div className="space-y-2">
               {historyPlans.map((plan) => (
-                <button
+                <div
                   key={plan.id}
-                  onClick={() => handleLoadHistory(plan)}
-                  disabled={loadingPlanId === plan.id}
-                  className="w-full text-left bg-[#f2f2f7] rounded-xl px-3 py-2.5 flex items-center justify-between gap-3 active:scale-[0.98] transition-transform disabled:opacity-50"
+                  className="bg-[#f2f2f7] rounded-xl px-3 py-2.5 flex items-center gap-2"
                 >
-                  <div className="min-w-0">
+                  <button
+                    onClick={() => handleLoadHistory(plan)}
+                    disabled={loadingPlanId === plan.id || deletingPlanId === plan.id}
+                    className="flex-1 text-left min-w-0 active:opacity-70 transition-opacity disabled:opacity-40"
+                  >
                     <p className="text-sm font-semibold text-[#1c1c1e] truncate">{plan.name}</p>
                     {plan.peopleCount && (
                       <p className="text-xs text-[#8e8e93]">👤 {plan.peopleCount} personne{plan.peopleCount > 1 ? 's' : ''}</p>
                     )}
+                  </button>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {confirmDeletePlanId === plan.id ? (
+                      <>
+                        <button
+                          onClick={() => handleDeletePlan(plan.id)}
+                          disabled={deletingPlanId === plan.id}
+                          className="text-[11px] bg-red-500 text-white px-2.5 py-1 rounded-full font-semibold"
+                        >
+                          {deletingPlanId === plan.id ? '…' : 'Suppr.'}
+                        </button>
+                        <button
+                          onClick={() => setConfirmDeletePlanId(null)}
+                          className="text-[11px] bg-white text-[#3a3a3c] px-2.5 py-1 rounded-full font-semibold"
+                        >
+                          Annuler
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        {loadingPlanId === plan.id
+                          ? <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                          : <span className="text-[#c7c7cc] text-sm">→</span>}
+                        <button
+                          onClick={() => setConfirmDeletePlanId(plan.id)}
+                          title="Supprimer de Notion"
+                          className="text-[#c7c7cc] text-base hover:text-red-400 transition-colors"
+                        >
+                          🗑️
+                        </button>
+                      </>
+                    )}
                   </div>
-                  {loadingPlanId === plan.id
-                    ? <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin shrink-0" />
-                    : <span className="text-[#c7c7cc] text-sm shrink-0">→</span>}
-                </button>
+                </div>
               ))}
             </div>
           )}

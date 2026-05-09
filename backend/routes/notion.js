@@ -3,6 +3,7 @@ const router = express.Router();
 const {
   getAllRecipes, getRecipeById, createRecipe, searchRecipes,
   saveMealPlan, getMealPlans, getMealPlanById,
+  deleteRecipe, deleteMealPlan,
 } = require('../services/notionService');
 
 router.get('/recipes', async (_req, res, next) => {
@@ -40,6 +41,10 @@ router.post('/recipes', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+router.delete('/recipes/:id', async (req, res, next) => {
+  try { await deleteRecipe(req.params.id); res.json({ ok: true }); } catch (err) { next(err); }
+});
+
 router.post('/meal-plan', async (req, res, next) => {
   try {
     const { plan, startDate, endDate, peopleCount, preferences } = req.body;
@@ -56,6 +61,10 @@ router.get('/meal-plans', async (_req, res, next) => {
 
 router.get('/meal-plans/:id', async (req, res, next) => {
   try { res.json(await getMealPlanById(req.params.id)); } catch (err) { next(err); }
+});
+
+router.delete('/meal-plans/:id', async (req, res, next) => {
+  try { await deleteMealPlan(req.params.id); res.json({ ok: true }); } catch (err) { next(err); }
 });
 
 module.exports = router;

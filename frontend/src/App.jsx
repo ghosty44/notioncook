@@ -29,7 +29,7 @@ const PAGE_TITLES = {
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('planner');
-  const { recipes, loading, error, refetch, saveToNotion } = useRecipes();
+  const { recipes, loading, error, refetch, saveToNotion, deleteRecipeById } = useRecipes();
   const sessionCount = useBatchStore((s) => s.mealPlan?.days?.length ?? s.entries.length);
   const peopleCount = useBatchStore((s) => s.peopleCount);
   const setPeopleCount = useBatchStore((s) => s.setPeopleCount);
@@ -51,7 +51,7 @@ export default function App() {
       </header>
 
       <main key={activeTab} className="max-w-2xl mx-auto px-5 py-5 pb-28 animate-page-enter">
-        {activeTab === 'library' && <RecipeLibrary recipes={recipes} loading={loading} error={error} onRefetch={refetch} />}
+        {activeTab === 'library' && <RecipeLibrary recipes={recipes} loading={loading} error={error} onRefetch={refetch} onDeleteRecipe={deleteRecipeById} />}
         {activeTab === 'planner' && <BatchPlanner />}
         {activeTab === 'shopping' && <ShoppingList />}
         {activeTab === 'timeline' && <CookingTimeline />}
