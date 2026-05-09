@@ -62,10 +62,10 @@ export default function RecipeModal({ recipe, onClose }) {
               </div>
             )}
             <div className="bg-[#f2f2f7] rounded-2xl p-3 text-center">
-              <div className="text-lg font-bold text-[#1c1c1e]">1<span className="text-xs font-normal"> pers.</span></div>
-              <div className="text-xs text-[#8e8e93]">Base recette</div>
+              <div className="text-lg font-bold text-[#1c1c1e]">{recipe.servings || 1}<span className="text-xs font-normal"> pers.</span></div>
+              <div className="text-xs text-[#8e8e93]">Portions</div>
             </div>
-            {recipe.storageDays && (
+            {recipe.storageDays > 0 && (
               <div className="bg-[#f2f2f7] rounded-2xl p-3 text-center">
                 <div className="text-lg font-bold text-[#1c1c1e]">{recipe.storageDays}<span className="text-xs font-normal">j</span></div>
                 <div className="text-xs text-[#8e8e93]">Conservation</div>
@@ -73,12 +73,22 @@ export default function RecipeModal({ recipe, onClose }) {
             )}
           </div>
 
+          {/* Batch note */}
+          {recipe.batchNote && (
+            <div className="mb-5">
+              <div className="bg-green-50 border border-green-100 rounded-2xl p-4">
+                <p className="text-[13px] font-semibold text-green-700 mb-1">♻️ Note batch</p>
+                <p className="text-sm text-green-700 leading-relaxed">{recipe.batchNote}</p>
+              </div>
+            </div>
+          )}
+
           {/* Ingredients */}
           {recipe.ingredients && (
             <div className="mb-5">
               <h3 className="text-[15px] font-semibold text-[#1c1c1e] mb-2">
                 Ingrédients
-                <span className="text-[#8e8e93] font-normal text-xs ml-1">(pour 1 personne)</span>
+                <span className="text-[#8e8e93] font-normal text-xs ml-1">(pour {recipe.servings || 1} personne{(recipe.servings || 1) > 1 ? 's' : ''})</span>
               </h3>
               <div className="bg-[#f2f2f7] rounded-2xl overflow-hidden">
                 {recipe.ingredients.split('\n').filter(Boolean).map((line, i, arr) => (

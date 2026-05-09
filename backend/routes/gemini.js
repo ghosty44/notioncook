@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { generateBatchRecipe, generateMealPlan, regenerateMeal } = require('../services/geminiService');
+const { generateBatchRecipe, generateMealPlan, regenerateMeal, expandMeal } = require('../services/geminiService');
 
 router.post('/generate', async (req, res, next) => {
   try {
@@ -38,6 +38,17 @@ router.post('/regenerate-meal', async (req, res, next) => {
     if (!currentPlan?.days?.length) return res.status(400).json({ error: 'currentPlan.days requis' });
     const meal = await regenerateMeal({ date, mealType, currentPlan, peopleCount, preferences });
     res.json(meal);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/expand-meal', async (req, res, next) => {
+  try {
+    const { name, description, batchNote, prepTime, cookTime, peopleCount = 4, preferences = '' } = req.body;
+    if (!name?.trim()) return res.status(400).json({ error: 'Nom du plat requis' });
+    const recipe = await expandMeal({ name, description, batchNote, prepTime, cookTime, peopleCount, preferences });
+    res.json(recipe);
   } catch (err) {
     next(err);
   }

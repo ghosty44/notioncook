@@ -122,4 +122,48 @@ Réponds UNIQUEMENT avec ce JSON (sans texte autour) :
   }
 }
 
-module.exports = { generateBatchRecipe, generateMealPlan, regenerateMeal };
+async function expandMeal({ name, description, batchNote, prepTime, cookTime, peopleCount = 4, preferences = '' }) {
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-2.5-flash',
+    generationConfig: { thinkingConfig: { thinkingBudget: 0 } },
+  });
+
+  const babyMonths = getBabyAgeMonths();
+  const prefStr = preferences ? `\nContraintes / préférences : ${preferences}` : '';
+  const contextLines = [
+    description ? `Description : ${description}` : '',
+    batchNote ? `Note batch : ${batchNote}` : '',
+  ].filter(Boolean).join('\n');
+
+  const prompt = `Tu es un chef expert en batch cooking. Développe la recette complète pour "${name}" pour ${peopleCount} personne${peopleCount > 1 ? 's' : ''}.
+${contextLines}${prefStr}
+
+La recette doit être optimisée batch cooking, se conserver plusieurs jours, et toutes les quantités doivent être adaptées pour ${peopleCount} personne${peopleCount > 1 ? 's' : ''}.
+Ajoute aussi une adaptation pour un bébé de ${babyMonths} mois (sans sel ajouté, texture adaptée, ingrédients sûrs).
+
+Réponds UNIQUEMENT avec ce JSON (sans texte autour) :
+{"name":"","category":"Déjeuner|Dîner|Petit-déjeuner|Snack|Dessert|Soupe|Salade","prepTime":0,"cookTime":0,"servings":${peopleCount},"tags":[],"ingredients":"une ligne par ingrédient avec quantité pour ${peopleCount} personnes","instructions":"étapes numérotées, une par ligne","batchFriendly":true,"storageDays":0,"storageMethod":"Frigo|Congélateur|Température ambiante","storageTips":"","babyAdaptation":"adaptation pour bébé de ${babyMonths} mois : texture, ingrédients à retirer, précautions","batchNote":"reprendre ou compléter la note batch, ou null si aucune"}`;
+
+  const result = await model.generateContent(prompt);
+  const text = result.response.text();
+  const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+  const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error('Réponse Gemini invalide');
+
+  let recipe;
+  try {
+    recipe = JSON.parse(jsonMatch[0]);
+  } catch {
+    throw new Error('JSON invalide dans la réponse Gemini');
+  }
+
+  if (Array.isArray(recipe.ingredients)) recipe.ingredients = recipe.ingredients.join('\n');
+  if (Array.isArray(recipe.instructions)) recipe.instructions = recipe.instructions.join('\n');
+
+  recipe.id = `expanded-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  recipe.source = 'gemini';
+  recipe.servings = peopleCount;
+  return recipe;
+}
+
+module.exports = { generateBatchRecipe, generateMealPlan, regenerateMeal, expandMeal };
