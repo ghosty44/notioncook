@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { generateBatchRecipe, generateMealPlan } = require('../services/geminiService');
+const { generateBatchRecipe, generateMealPlan, regenerateMeal } = require('../services/geminiService');
 
 router.post('/generate', async (req, res, next) => {
   try {
@@ -25,6 +25,19 @@ router.post('/meal-plan', async (req, res, next) => {
     if (nbDays < 1 || nbDays > 14) return res.status(400).json({ error: 'Période entre 1 et 14 jours' });
     const plan = await generateMealPlan({ startDate, endDate, peopleCount, preferences });
     res.json(plan);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/regenerate-meal', async (req, res, next) => {
+  try {
+    const { date, mealType, currentPlan, peopleCount = 4, preferences = '' } = req.body;
+    if (!date || !mealType) return res.status(400).json({ error: 'date et mealType requis' });
+    if (!['lunch', 'dinner'].includes(mealType)) return res.status(400).json({ error: 'mealType doit être lunch ou dinner' });
+    if (!currentPlan?.days?.length) return res.status(400).json({ error: 'currentPlan.days requis' });
+    const meal = await regenerateMeal({ date, mealType, currentPlan, peopleCount, preferences });
+    res.json(meal);
   } catch (err) {
     next(err);
   }

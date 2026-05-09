@@ -85,4 +85,41 @@ Génère maintenant le plan complet pour les ${nbDays} jours en respectant rigou
   }
 }
 
-module.exports = { generateBatchRecipe, generateMealPlan };
+async function regenerateMeal({ date, mealType, currentPlan, peopleCount = 4, preferences = '' }) {
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-2.5-flash',
+    generationConfig: { thinkingConfig: { thinkingBudget: 0 } },
+  });
+
+  const otherMeals = currentPlan.days.flatMap((d) => [
+    d.date !== date || mealType !== 'lunch' ? d.lunch?.name : null,
+    d.date !== date || mealType !== 'dinner' ? d.dinner?.name : null,
+  ]).filter(Boolean);
+
+  const batchBases = currentPlan.batchSessions?.flatMap((s) => s.tasks).slice(0, 5) ?? [];
+  const prefStr = preferences ? `\nContraintes / préférences : ${preferences}` : '';
+  const mealLabel = mealType === 'lunch' ? 'midi' : 'soir';
+  const day = currentPlan.days.find((d) => d.date === date);
+  const dayLabel = day?.dayLabel || date;
+
+  const prompt = `Tu es un chef expert en batch cooking. Le plan de repas actuel inclut ces plats : ${otherMeals.slice(0, 10).join(', ')}.
+Sessions batch existantes : ${batchBases.join(' | ')}.${prefStr}
+
+Génère UN SEUL repas pour le ${mealLabel} du ${dayLabel} (${date}), pour ${peopleCount} personne${peopleCount > 1 ? 's' : ''}, différent de tous les plats existants mais cohérent avec les bases batch déjà préparées.
+
+Réponds UNIQUEMENT avec ce JSON (sans texte autour) :
+{"name":"","description":"Description 1 phrase","prepTime":0,"cookTime":0,"batchNote":"Comment ce plat utilise les bases batch, ou null"}`;
+
+  const result = await model.generateContent(prompt);
+  const text = result.response.text();
+  const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+  const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error('Réponse Gemini invalide');
+  try {
+    return JSON.parse(jsonMatch[0]);
+  } catch {
+    throw new Error('JSON invalide dans la réponse Gemini');
+  }
+}
+
+module.exports = { generateBatchRecipe, generateMealPlan, regenerateMeal };

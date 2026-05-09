@@ -23,6 +23,16 @@ export const useBatchStore = create(
       setPlanPreferences: (v) => set({ planPreferences: v }),
       clearMealPlan: () => set({ mealPlan: null, planError: null, planPreferences: '' }),
 
+      updateMeal: (date, mealType, meal) =>
+        set((s) => ({
+          mealPlan: {
+            ...s.mealPlan,
+            days: s.mealPlan.days.map((d) =>
+              d.date === date ? { ...d, [mealType === 'lunch' ? 'lunch' : 'dinner']: meal } : d
+            ),
+          },
+        })),
+
       addEntry: (recipe) =>
         set((state) => {
           if (state.entries.some((e) => e.recipe.id === recipe.id)) return state;

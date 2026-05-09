@@ -27,7 +27,7 @@ function formatMinutes(min) {
   return m ? `${h}h${m}` : `${h}h`;
 }
 
-function MealRow({ meal, icon, label }) {
+function MealRow({ meal, icon, label, regenerating, onRegenerate }) {
   const [open, setOpen] = useState(false);
   if (!meal) return null;
   return (
@@ -59,6 +59,18 @@ function MealRow({ meal, icon, label }) {
             </div>
           )}
         </div>
+        {onRegenerate && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onRegenerate(); }}
+            disabled={regenerating}
+            title="Régénérer ce repas"
+            className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-[#f2f2f7] disabled:opacity-50 transition-opacity"
+          >
+            {regenerating
+              ? <div className="w-3.5 h-3.5 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+              : <span className="text-sm">🔄</span>}
+          </button>
+        )}
         <span className="text-[#c7c7cc] text-[10px] shrink-0 mt-1.5">{open ? '▲' : '▼'}</span>
       </div>
     </div>
@@ -69,22 +81,36 @@ export default function BatchPlanner() {
   const {
     startDate, endDate, mealPlan, planLoading, planError, planPreferences,
     peopleCount, setPeopleCount, setDateRange, setMealPlan, setPlanLoading,
-    setPlanError, setPlanPreferences, clearMealPlan,
+    setPlanError, setPlanPreferences, clearMealPlan, updateMeal,
   } = useBatchStore();
 
   const [activeChips, setActiveChips] = useState([]);
   const [saving, setSaving] = useState(false);
   const [savedPlan, setSavedPlan] = useState(null);
   const [saveError, setSaveError] = useState(null);
+  const [regenerating, setRegenerating] = useState({});
+  const [historyPlans, setHistoryPlans] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [loadingPlanId, setLoadingPlanId] = useState(null);
 
-  // Reset save state when plan changes
   useEffect(() => {
     setSavedPlan(null);
     setSaveError(null);
   }, [mealPlan]);
 
+  useEffect(() => {
+    if (mealPlan) return;
+    setHistoryLoading(true);
+    api.get('/notion/meal-plans')
+      .then((plans) => setHistoryPlans(plans))
+      .catch(() => setHistoryPlans([]))
+      .finally(() => setHistoryLoading(false));
+  }, [mealPlan]);
+
   const dayCount = getDayCount(startDate, endDate);
   const canGenerate = startDate && endDate && dayCount >= 1 && dayCount <= 14;
+  const today = new Date().toISOString().split('T')[0];
+  const todayDay = mealPlan?.days?.find((d) => d.date === today);
 
   function toggleChip(id) {
     setActiveChips((p) => p.includes(id) ? p.filter((c) => c !== id) : [...p, id]);
@@ -113,17 +139,41 @@ export default function BatchPlanner() {
     setSaveError(null);
     try {
       const result = await api.post('/notion/meal-plan', {
-        plan: mealPlan,
-        startDate,
-        endDate,
-        peopleCount,
-        preferences: planPreferences,
+        plan: mealPlan, startDate, endDate, peopleCount, preferences: planPreferences,
       });
       setSavedPlan(result);
     } catch (err) {
-      setSaveError(err.message || 'Erreur lors de l’enregistrement');
+      setSaveError(err.message || "Erreur lors de l'enregistrement");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleRegenerate(date, mealType) {
+    const key = `${date}-${mealType}`;
+    setRegenerating((r) => ({ ...r, [key]: true }));
+    try {
+      const meal = await api.post('/gemini/regenerate-meal', {
+        date, mealType, currentPlan: mealPlan, peopleCount, preferences: planPreferences,
+      });
+      updateMeal(date, mealType, meal);
+    } catch {
+      // silently fail — user can retry
+    } finally {
+      setRegenerating((r) => { const next = { ...r }; delete next[key]; return next; });
+    }
+  }
+
+  async function handleLoadHistory(plan) {
+    setLoadingPlanId(plan.id);
+    try {
+      const fullPlan = await api.get(`/notion/meal-plans/${plan.id}`);
+      setMealPlan(fullPlan);
+      if (plan.startDate) setDateRange(plan.startDate, plan.endDate);
+    } catch {
+      // silently fail
+    } finally {
+      setLoadingPlanId(null);
     }
   }
 
@@ -147,7 +197,7 @@ export default function BatchPlanner() {
     return (
       <div className="space-y-4">
         {/* Summary */}
-        <div className="bg-white rounded-2xl shadow-sm border border-black/5 p-4 flex items-center justify-between">
+        <div className="bg-white rounded-2xl shadow-sm border border-black/5 p-4 flex items-center justify-between animate-page-enter">
           <div>
             <p className="text-[15px] font-semibold text-[#1c1c1e]">
               {mealPlan.days?.length ?? 0} jours · {(mealPlan.days?.length ?? 0) * 2} repas
@@ -165,9 +215,27 @@ export default function BatchPlanner() {
           </button>
         </div>
 
+        {/* Today banner */}
+        {todayDay && (
+          <div
+            className="bg-orange-50 rounded-2xl border border-orange-200 overflow-hidden animate-page-enter"
+            style={{ animationDelay: '40ms' }}
+          >
+            <div className="px-4 pt-3 pb-1">
+              <p className="text-[11px] font-semibold text-orange-600 uppercase tracking-wider">📅 Aujourd'hui</p>
+            </div>
+            <MealRow meal={todayDay.lunch} icon="🌞" label="Midi" />
+            <div className="border-t border-orange-100" />
+            <MealRow meal={todayDay.dinner} icon="🌙" label="Soir" />
+          </div>
+        )}
+
         {/* Batch sessions */}
         {mealPlan.batchSessions?.length > 0 && (
-          <div className="bg-orange-50 rounded-2xl border border-orange-100 p-4">
+          <div
+            className="bg-orange-50 rounded-2xl border border-orange-100 p-4 animate-page-enter"
+            style={{ animationDelay: '80ms' }}
+          >
             <p className="text-[11px] font-semibold text-orange-600 uppercase tracking-wider mb-3">
               🔄 Sessions de préparation batch
             </p>
@@ -201,13 +269,29 @@ export default function BatchPlanner() {
 
         {/* Days */}
         {mealPlan.days?.map((day, i) => (
-          <div key={i} className="bg-white rounded-2xl shadow-sm border border-black/5 overflow-hidden">
+          <div
+            key={i}
+            className="bg-white rounded-2xl shadow-sm border border-black/5 overflow-hidden animate-page-enter"
+            style={{ animationDelay: `${(i + 2) * 40}ms` }}
+          >
             <div className="px-4 py-2.5 bg-[#f9f9f9] border-b border-[#f2f2f7]">
               <p className="text-[13px] font-bold text-[#1c1c1e]">{day.dayLabel}</p>
             </div>
-            <MealRow meal={day.lunch} icon="🌞" label="Midi" />
+            <MealRow
+              meal={day.lunch}
+              icon="🌞"
+              label="Midi"
+              regenerating={!!regenerating[`${day.date}-lunch`]}
+              onRegenerate={() => handleRegenerate(day.date, 'lunch')}
+            />
             <div className="border-t border-[#f2f2f7]" />
-            <MealRow meal={day.dinner} icon="🌙" label="Soir" />
+            <MealRow
+              meal={day.dinner}
+              icon="🌙"
+              label="Soir"
+              regenerating={!!regenerating[`${day.date}-dinner`]}
+              onRegenerate={() => handleRegenerate(day.date, 'dinner')}
+            />
           </div>
         ))}
 
@@ -314,6 +398,41 @@ export default function BatchPlanner() {
           ))}
         </div>
       </div>
+
+      {/* History */}
+      {(historyLoading || historyPlans.length > 0) && (
+        <div className="bg-white rounded-2xl shadow-sm border border-black/5 p-4">
+          <p className="text-[11px] font-semibold text-[#8e8e93] uppercase tracking-wider mb-3">📋 Plans précédents</p>
+          {historyLoading ? (
+            <div className="space-y-2">
+              {[1, 2].map((i) => (
+                <div key={i} className="h-14 bg-[#f2f2f7] rounded-xl animate-pulse" />
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {historyPlans.map((plan) => (
+                <button
+                  key={plan.id}
+                  onClick={() => handleLoadHistory(plan)}
+                  disabled={loadingPlanId === plan.id}
+                  className="w-full text-left bg-[#f2f2f7] rounded-xl px-3 py-2.5 flex items-center justify-between gap-3 active:scale-[0.98] transition-transform disabled:opacity-50"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-[#1c1c1e] truncate">{plan.name}</p>
+                    {plan.peopleCount && (
+                      <p className="text-xs text-[#8e8e93]">👤 {plan.peopleCount} personne{plan.peopleCount > 1 ? 's' : ''}</p>
+                    )}
+                  </div>
+                  {loadingPlanId === plan.id
+                    ? <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin shrink-0" />
+                    : <span className="text-[#c7c7cc] text-sm shrink-0">→</span>}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {planError && (
         <div className="bg-red-50 border border-red-100 rounded-2xl p-3 text-sm text-red-600">{planError}</div>

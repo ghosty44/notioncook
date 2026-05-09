@@ -96,7 +96,6 @@ async function searchRecipes(query) {
   return response.results.map(pageToRecipe);
 }
 
-// Find a recipe by exact name, or create a stub if not found
 async function findOrCreateRecipeByName(name, description, prepTime, cookTime) {
   const response = await notion.databases.query({
     database_id: DATABASE_ID,
@@ -124,12 +123,67 @@ async function findOrCreateRecipeByName(name, description, prepTime, cookTime) {
   return page.id;
 }
 
+async function findPlanByDates(startDate, endDate) {
+  const response = await notion.databases.query({
+    database_id: MEAL_PLANS_DB_ID,
+    filter: {
+      and: [
+        { property: 'DateDébut', date: { equals: startDate } },
+        { property: 'DateFin', date: { equals: endDate } },
+      ],
+    },
+    page_size: 1,
+  });
+  return response.results[0] || null;
+}
+
+async function findDayPage(planId, date) {
+  const response = await notion.databases.query({
+    database_id: DAYS_DB_ID,
+    filter: {
+      and: [
+        { property: 'Plan', relation: { contains: planId } },
+        { property: 'Date', date: { equals: date } },
+      ],
+    },
+    page_size: 1,
+  });
+  return response.results[0] || null;
+}
+
+async function getMealPlans() {
+  if (!MEAL_PLANS_DB_ID) return [];
+  const response = await notion.databases.query({
+    database_id: MEAL_PLANS_DB_ID,
+    sorts: [{ property: 'DateDébut', direction: 'descending' }],
+    page_size: 10,
+  });
+  return response.results.map((page) => {
+    const props = page.properties;
+    return {
+      id: page.id,
+      name: richTextToString(props.Nom?.title) || 'Sans titre',
+      url: page.url,
+      startDate: props['DateDébut']?.date?.start || null,
+      endDate: props.DateFin?.date?.start || null,
+      peopleCount: props.Personnes?.number ?? null,
+    };
+  });
+}
+
+async function getMealPlanById(planId) {
+  const response = await notion.blocks.children.list({ block_id: planId, page_size: 50 });
+  const codeBlock = response.results.find((b) => b.type === 'code');
+  if (!codeBlock) throw new Error('Aucun JSON stocké pour ce plan');
+  const jsonText = codeBlock.code.rich_text.map((t) => t.plain_text).join('');
+  return JSON.parse(jsonText);
+}
+
 async function saveMealPlan({ plan, startDate, endDate, peopleCount, preferences = '' }) {
   if (!MEAL_PLANS_DB_ID || !DAYS_DB_ID) {
     throw new Error('NOTION_MEAL_PLANS_DB_ID ou NOTION_DAYS_DB_ID manquant dans .env');
   }
 
-  // 1. Collect unique meals and find/create their recipe pages
   const allMeals = plan.days.flatMap((d) => [
     d.lunch ? { name: d.lunch.name, description: d.lunch.description, prepTime: d.lunch.prepTime, cookTime: d.lunch.cookTime } : null,
     d.dinner ? { name: d.dinner.name, description: d.dinner.description, prepTime: d.dinner.prepTime, cookTime: d.dinner.cookTime } : null,
@@ -144,7 +198,6 @@ async function saveMealPlan({ plan, startDate, endDate, peopleCount, preferences
     );
   }
 
-  // 2. Format text fields
   const batchText = plan.batchSessions?.map((s) =>
     `${s.dayLabel}${s.label && s.label !== s.dayLabel ? ' — ' + s.label : ''}\n` +
     s.tasks.map((t) => `• ${t}`).join('\n')
@@ -154,11 +207,9 @@ async function saveMealPlan({ plan, startDate, endDate, peopleCount, preferences
     `• ${item.name} — ${item.quantity} (${item.category})`
   ).join('\n') || '';
 
-  // 3. Plan name
   const fmt = (d) => new Date(d + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
   const planName = `Plan du ${fmt(startDate)} au ${fmt(endDate)}`;
 
-  // 4. Create the Plan de repas page
   const planProps = {
     Nom: { title: [{ text: { content: planName } }] },
     'DateDébut': { date: { start: startDate } },
@@ -169,12 +220,31 @@ async function saveMealPlan({ plan, startDate, endDate, peopleCount, preferences
   if (batchText) planProps.SessionsBatch = { rich_text: toRichText(batchText) };
   if (coursesText) planProps.ListeCourses = { rich_text: toRichText(coursesText) };
 
-  const planPage = await notion.pages.create({
-    parent: { database_id: MEAL_PLANS_DB_ID },
-    properties: planProps,
+  let planPageId;
+  let planPageUrl;
+  const existingPlan = await findPlanByDates(startDate, endDate);
+  if (existingPlan) {
+    planPageId = existingPlan.id;
+    planPageUrl = existingPlan.url;
+    await notion.pages.update({ page_id: planPageId, properties: planProps });
+    const blocks = await notion.blocks.children.list({ block_id: planPageId, page_size: 50 });
+    for (const block of blocks.results.filter((b) => b.type === 'code')) {
+      await notion.blocks.delete({ block_id: block.id });
+    }
+  } else {
+    const planPage = await notion.pages.create({
+      parent: { database_id: MEAL_PLANS_DB_ID },
+      properties: planProps,
+    });
+    planPageId = planPage.id;
+    planPageUrl = planPage.url;
+  }
+
+  await notion.blocks.children.append({
+    block_id: planPageId,
+    children: [{ type: 'code', code: { language: 'json', rich_text: toRichText(JSON.stringify(plan)) } }],
   });
 
-  // 5. Create one Jour du plan page per day
   for (const day of plan.days) {
     const lunchId = day.lunch?.name ? recipeMap[day.lunch.name] : null;
     const dinnerId = day.dinner?.name ? recipeMap[day.dinner.name] : null;
@@ -182,18 +252,23 @@ async function saveMealPlan({ plan, startDate, endDate, peopleCount, preferences
     const dayProps = {
       Nom: { title: [{ text: { content: day.dayLabel } }] },
       Date: { date: { start: day.date } },
-      Plan: { relation: [{ id: planPage.id }] },
+      Plan: { relation: [{ id: planPageId }] },
     };
     if (lunchId) dayProps.Midi = { relation: [{ id: lunchId }] };
     if (dinnerId) dayProps.Soir = { relation: [{ id: dinnerId }] };
 
-    await notion.pages.create({
-      parent: { database_id: DAYS_DB_ID },
-      properties: dayProps,
-    });
+    const existingDay = await findDayPage(planPageId, day.date);
+    if (existingDay) {
+      await notion.pages.update({ page_id: existingDay.id, properties: dayProps });
+    } else {
+      await notion.pages.create({ parent: { database_id: DAYS_DB_ID }, properties: dayProps });
+    }
   }
 
-  return { id: planPage.id, url: planPage.url, name: planName };
+  return { id: planPageId, url: planPageUrl, name: planName };
 }
 
-module.exports = { getAllRecipes, getRecipeById, createRecipe, searchRecipes, saveMealPlan };
+module.exports = {
+  getAllRecipes, getRecipeById, createRecipe, searchRecipes,
+  saveMealPlan, getMealPlans, getMealPlanById,
+};

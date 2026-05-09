@@ -50,7 +50,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-5 py-5 pb-28">
+      <main key={activeTab} className="max-w-2xl mx-auto px-5 py-5 pb-28 animate-page-enter">
         {activeTab === 'library' && <RecipeLibrary recipes={recipes} loading={loading} error={error} onRefetch={refetch} />}
         {activeTab === 'planner' && <BatchPlanner />}
         {activeTab === 'shopping' && <ShoppingList />}

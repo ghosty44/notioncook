@@ -78,11 +78,12 @@ export default function RecipeLibrary({ recipes, loading, error, onRefetch }) {
         <div className="text-center py-16 text-[#8e8e93]">Aucune recette trouvée</div>
       ) : (
         <div className="space-y-3">
-          {filtered.map((recipe) => (
+          {filtered.map((recipe, i) => (
             <div
               key={recipe.id}
               onClick={() => setSelected(recipe)}
-              className="bg-white rounded-2xl shadow-sm border border-black/5 overflow-hidden cursor-pointer active:scale-[0.98] transition-transform duration-100"
+              style={{ animationDelay: `${i * 40}ms` }}
+              className="animate-page-enter bg-white rounded-2xl shadow-sm border border-black/5 overflow-hidden cursor-pointer active:scale-[0.98] transition-transform duration-100"
             >
               {recipe.imageUrl && (
                 <img src={recipe.imageUrl} alt={recipe.name} className="w-full h-44 object-cover" />

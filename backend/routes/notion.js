@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { getAllRecipes, getRecipeById, createRecipe, searchRecipes, saveMealPlan } = require('../services/notionService');
+const {
+  getAllRecipes, getRecipeById, createRecipe, searchRecipes,
+  saveMealPlan, getMealPlans, getMealPlanById,
+} = require('../services/notionService');
 
 router.get('/recipes', async (_req, res, next) => {
   try { res.json(await getAllRecipes()); } catch (err) { next(err); }
@@ -45,6 +48,14 @@ router.post('/meal-plan', async (req, res, next) => {
     const result = await saveMealPlan({ plan, startDate, endDate, peopleCount: peopleCount || 1, preferences: preferences || '' });
     res.status(201).json(result);
   } catch (err) { next(err); }
+});
+
+router.get('/meal-plans', async (_req, res, next) => {
+  try { res.json(await getMealPlans()); } catch (err) { next(err); }
+});
+
+router.get('/meal-plans/:id', async (req, res, next) => {
+  try { res.json(await getMealPlanById(req.params.id)); } catch (err) { next(err); }
 });
 
 module.exports = router;
