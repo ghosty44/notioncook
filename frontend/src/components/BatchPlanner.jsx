@@ -29,7 +29,7 @@ function formatMinutes(min) {
   return m ? `${h}h${m}` : `${h}h`;
 }
 
-// Slim row for the Today banner — no expand button
+// Slim row for the Today banner — no expand
 function TodayMealRow({ meal, icon, label }) {
   if (!meal) return null;
   return (
@@ -53,35 +53,34 @@ function TodayMealRow({ meal, icon, label }) {
   );
 }
 
-// Full card with expand-to-recipe button
+// Card that auto-fetches the full recipe on mount
 function MealCard({ meal, icon, label, regenerating, onRegenerate, peopleCount, preferences }) {
-  const [expanding, setExpanding] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [fullRecipe, setFullRecipe] = useState(null);
   const [showModal, setShowModal] = useState(false);
 
-  if (!meal) return null;
+  useEffect(() => {
+    if (!meal?.name) return;
+    setLoading(true);
+    setFullRecipe(null);
+    let cancelled = false;
+    api.post('/gemini/expand-meal', {
+      name: meal.name,
+      description: meal.description,
+      batchNote: meal.batchNote,
+      prepTime: meal.prepTime,
+      cookTime: meal.cookTime,
+      peopleCount,
+      preferences,
+    }).then((recipe) => {
+      if (!cancelled) { setFullRecipe(recipe); setLoading(false); }
+    }).catch(() => {
+      if (!cancelled) setLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [meal?.name]);
 
-  async function handleExpand() {
-    if (fullRecipe) { setShowModal(true); return; }
-    setExpanding(true);
-    try {
-      const recipe = await api.post('/gemini/expand-meal', {
-        name: meal.name,
-        description: meal.description,
-        batchNote: meal.batchNote,
-        prepTime: meal.prepTime,
-        cookTime: meal.cookTime,
-        peopleCount,
-        preferences,
-      });
-      setFullRecipe(recipe);
-      setShowModal(true);
-    } catch {
-      // silently fail — user can retry
-    } finally {
-      setExpanding(false);
-    }
-  }
+  if (!meal) return null;
 
   return (
     <>
@@ -126,22 +125,19 @@ function MealCard({ meal, icon, label, regenerating, onRegenerate, peopleCount, 
             <p className="text-xs text-green-700 leading-relaxed">♻️ {meal.batchNote}</p>
           </div>
         )}
-        <button
-          onClick={handleExpand}
-          disabled={expanding}
-          className="w-full bg-[#f2f2f7] text-[#3a3a3c] py-2 rounded-xl text-[13px] font-semibold flex items-center justify-center gap-2 active:opacity-70 transition-opacity disabled:opacity-50"
-        >
-          {expanding ? (
-            <>
-              <div className="w-3.5 h-3.5 border-2 border-[#8e8e93] border-t-transparent rounded-full animate-spin" />
-              Développement en cours…
-            </>
-          ) : fullRecipe ? (
-            '📖 Voir la recette complète'
-          ) : (
-            '✨ Développer la recette'
-          )}
-        </button>
+        {loading ? (
+          <div className="w-full bg-[#f2f2f7] py-2 rounded-xl flex items-center justify-center gap-2">
+            <div className="w-3.5 h-3.5 border-2 border-[#c7c7cc] border-t-transparent rounded-full animate-spin" />
+            <span className="text-[13px] text-[#8e8e93]">Développement en cours…</span>
+          </div>
+        ) : fullRecipe ? (
+          <button
+            onClick={() => setShowModal(true)}
+            className="w-full bg-[#f2f2f7] text-[#3a3a3c] py-2 rounded-xl text-[13px] font-semibold flex items-center justify-center gap-2 active:opacity-70 transition-opacity"
+          >
+            📖 Voir la recette complète
+          </button>
+        ) : null}
       </div>
       {showModal && fullRecipe && (
         <RecipeModal recipe={fullRecipe} showBatchNote onClose={() => setShowModal(false)} />

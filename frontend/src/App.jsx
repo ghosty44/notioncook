@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import Navigation from './components/Navigation';
 import RecipeLibrary from './components/RecipeLibrary';
 import BatchPlanner from './components/BatchPlanner';
-import ShoppingList from './components/ShoppingList';
 import CookingTimeline from './components/CookingTimeline';
 import AISuggestions from './components/AISuggestions';
 import DriveTab from './components/DriveTab';
@@ -12,16 +11,14 @@ import { useBatchStore } from './store/batchStore';
 const TABS = [
   { id: 'library', label: 'Recettes', icon: '📚' },
   { id: 'planner', label: 'Plan', icon: '🗓️' },
-  { id: 'shopping', label: 'Courses', icon: '🛒' },
   { id: 'timeline', label: 'Timeline', icon: '⏱' },
   { id: 'ai', label: 'IA', icon: '✨' },
-  { id: 'drive', label: 'Drive', icon: '🛍️' },
+  { id: 'drive', label: 'Drive', icon: '🛗️' },
 ];
 
 const PAGE_TITLES = {
   library: 'Mes Recettes',
   planner: 'Plan de repas',
-  shopping: 'Liste de courses',
   timeline: 'Planning cuisson',
   ai: 'Suggestions IA',
   drive: 'Panier Drive',
@@ -53,7 +50,6 @@ export default function App() {
       <main key={activeTab} className="max-w-2xl mx-auto px-5 py-5 pb-28 animate-page-enter">
         {activeTab === 'library' && <RecipeLibrary recipes={recipes} loading={loading} error={error} onRefetch={refetch} onDeleteRecipe={deleteRecipeById} />}
         {activeTab === 'planner' && <BatchPlanner />}
-        {activeTab === 'shopping' && <ShoppingList />}
         {activeTab === 'timeline' && <CookingTimeline />}
         {activeTab === 'ai' && <AISuggestions onSaveToNotion={saveToNotion} />}
         {activeTab === 'drive' && <DriveTab />}
