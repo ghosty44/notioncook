@@ -11,7 +11,7 @@ import { useBatchStore } from './store/batchStore';
 
 const TABS = [
   { id: 'library', label: 'Recettes', icon: '📚' },
-  { id: 'planner', label: 'Session', icon: '🥘' },
+  { id: 'planner', label: 'Plan', icon: '🗓️' },
   { id: 'shopping', label: 'Courses', icon: '🛒' },
   { id: 'timeline', label: 'Timeline', icon: '⏱' },
   { id: 'ai', label: 'IA', icon: '✨' },
@@ -20,7 +20,7 @@ const TABS = [
 
 const PAGE_TITLES = {
   library: 'Mes Recettes',
-  planner: 'Session Batch',
+  planner: 'Plan de repas',
   shopping: 'Liste de courses',
   timeline: 'Planning cuisson',
   ai: 'Suggestions IA',
@@ -30,7 +30,7 @@ const PAGE_TITLES = {
 export default function App() {
   const [activeTab, setActiveTab] = useState('planner');
   const { recipes, loading, error, refetch, saveToNotion } = useRecipes();
-  const sessionCount = useBatchStore((s) => s.entries.length);
+  const sessionCount = useBatchStore((s) => s.mealPlan?.days?.length ?? s.entries.length);
   const peopleCount = useBatchStore((s) => s.peopleCount);
   const setPeopleCount = useBatchStore((s) => s.setPeopleCount);
 
@@ -52,7 +52,7 @@ export default function App() {
 
       <main className="max-w-2xl mx-auto px-5 py-5 pb-28">
         {activeTab === 'library' && <RecipeLibrary recipes={recipes} loading={loading} error={error} onRefetch={refetch} />}
-        {activeTab === 'planner' && <BatchPlanner loading={loading} />}
+        {activeTab === 'planner' && <BatchPlanner />}
         {activeTab === 'shopping' && <ShoppingList />}
         {activeTab === 'timeline' && <CookingTimeline />}
         {activeTab === 'ai' && <AISuggestions onSaveToNotion={saveToNotion} />}

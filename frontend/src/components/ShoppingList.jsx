@@ -8,37 +8,61 @@ const CATEGORY_ORDER = [
 ];
 
 export default function ShoppingList() {
-  const { entries, peopleCount } = useBatchStore();
+  const { entries, peopleCount, mealPlan } = useBatchStore();
   const [checked, setChecked] = useState({});
 
-  const shoppingList = useMemo(
-    () => generateShoppingList(entries, peopleCount),
-    [entries, peopleCount]
-  );
+  const { categorized, fromPlan } = useMemo(() => {
+    if (mealPlan?.shoppingList?.length > 0) {
+      const groups = {};
+      mealPlan.shoppingList.forEach((item) => {
+        const cat = item.category || 'Divers';
+        if (!groups[cat]) groups[cat] = [];
+        groups[cat].push({
+          key: item.name.toLowerCase().replace(/\s+/g, '-'),
+          text: item.name,
+          qty: item.quantity || '',
+        });
+      });
+      return { categorized: groups, fromPlan: true };
+    }
+    const raw = generateShoppingList(entries, peopleCount);
+    const groups = {};
+    Object.entries(raw).forEach(([cat, items]) => {
+      groups[cat] = items.map((i) => ({
+        key: i.key,
+        text: formatIngredientLine(i),
+        qty: '',
+        sources: i.sources,
+      }));
+    });
+    return { categorized: groups, fromPlan: false };
+  }, [mealPlan, entries, peopleCount]);
 
   const orderedCategories = [
-    ...CATEGORY_ORDER.filter((c) => shoppingList[c]),
-    ...Object.keys(shoppingList).filter((c) => !CATEGORY_ORDER.includes(c) && shoppingList[c]),
+    ...CATEGORY_ORDER.filter((c) => categorized[c]),
+    ...Object.keys(categorized).filter((c) => !CATEGORY_ORDER.includes(c) && categorized[c]),
   ];
 
-  const total = Object.values(shoppingList).reduce((acc, items) => acc + items.length, 0);
+  const total = Object.values(categorized).reduce((acc, items) => acc + items.length, 0);
   const checkedCount = Object.values(checked).filter(Boolean).length;
 
-  const toggleItem = (key) => setChecked((prev) => ({ ...prev, [key]: !prev[key] }));
+  const toggleItem = (key) => setChecked((p) => ({ ...p, [key]: !p[key] }));
 
-  const handleCopy = () => {
-    const text = orderedCategories.flatMap((cat) => [
-      `\n${cat}`,
-      ...shoppingList[cat].map((item) => `  ${checked[item.key] ? '✓' : '○'} ${formatIngredientLine(item)}`),
-    ]).join('\n').trim();
-    navigator.clipboard.writeText(text);
-  };
+  function handleCopy() {
+    const lines = orderedCategories.flatMap((cat) => [
+      `\n${cat} :`,
+      ...categorized[cat].map((item) => `  ${checked[item.key] ? '✓' : '○'} ${item.text}${item.qty ? ' — ' + item.qty : ''}`),
+    ]);
+    navigator.clipboard.writeText(lines.join('\n').trim());
+  }
 
-  if (entries.length === 0) return (
+  if (total === 0) return (
     <div className="text-center py-20 text-[#8e8e93]">
       <div className="text-5xl mb-4">🛒</div>
       <p className="font-medium mb-1">Liste de courses vide</p>
-      <p className="text-sm">Ajoutez des recettes dans la session</p>
+      <p className="text-sm">
+        {fromPlan ? 'Aucun ingrédient dans le plan' : 'Générez un plan ou ajoutez des recettes'}
+      </p>
     </div>
   );
 
@@ -46,12 +70,9 @@ export default function ShoppingList() {
     <div>
       <div className="flex items-center justify-between mb-3">
         <p className="text-xs text-[#8e8e93]">
-          {checkedCount}/{total} articles · {peopleCount} personne{peopleCount > 1 ? 's' : ''}
+          {fromPlan ? '✨ Plan de repas' : `${peopleCount} pers.`} · {checkedCount}/{total} articles
         </p>
-        <div className="flex gap-3">
-          <button onClick={handleCopy} className="text-xs text-orange-500 font-semibold">Copier</button>
-          <button onClick={() => window.print()} className="text-xs text-orange-500 font-semibold">Imprimer</button>
-        </div>
+        <button onClick={handleCopy} className="text-xs text-orange-500 font-semibold">Copier</button>
       </div>
 
       <div className="bg-[#e5e5ea] rounded-full h-1.5 mb-5">
@@ -66,7 +87,7 @@ export default function ShoppingList() {
           <div key={category}>
             <p className="text-xs font-semibold text-[#8e8e93] uppercase tracking-wider mb-2 px-1">{category}</p>
             <div className="bg-white rounded-2xl shadow-sm border border-black/5 overflow-hidden">
-              {shoppingList[category].map((item, i, arr) => (
+              {categorized[category].map((item, i, arr) => (
                 <label
                   key={item.key}
                   className={`flex items-center gap-3 px-4 py-3 cursor-pointer ${
@@ -81,14 +102,12 @@ export default function ShoppingList() {
                   >
                     {checked[item.key] && <span className="text-white text-[10px] font-bold">✓</span>}
                   </div>
-                  <span className={`text-sm text-[#1c1c1e] flex-1 ${
-                    checked[item.key] ? 'line-through' : ''
-                  }`}>
-                    {formatIngredientLine(item)}
+                  <span className={`text-sm text-[#1c1c1e] flex-1 ${checked[item.key] ? 'line-through' : ''}`}>
+                    {item.text}
                   </span>
-                  <span className="text-xs text-[#c7c7cc] shrink-0 max-w-[90px] truncate text-right">
-                    {item.sources.join(', ')}
-                  </span>
+                  {item.qty && (
+                    <span className="text-xs text-[#8e8e93] shrink-0 font-medium">{item.qty}</span>
+                  )}
                 </label>
               ))}
             </div>
