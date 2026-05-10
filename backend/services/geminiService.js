@@ -20,7 +20,7 @@ async function generateBatchRecipe(preferences) {
 La recette DOIT se conserver plusieurs jours et être facile à réchauffer.
 Ajoute aussi une adaptation pour un bébé de ${babyMonths} mois (sans sel ajouté, texture adaptée, ingrédients sûrs).
 Réponds UNIQUEMENT avec ce JSON (sans texte autour) :
-{"name":"","category":"Déjeuner|Dîner|Petit-déjeuner|Snack|Dessert|Soupe|Salade","prepTime":0,"cookTime":0,"servings":1,"tags":[],"ingredients":"une ligne par ingrédient avec quantité","instructions":"étapes numérotées, une par ligne","batchFriendly":true,"storageDays":0,"storageMethod":"Frigo|Congélateur|Température ambiante","storageTips":"","babyAdaptation":"adaptation pour bébé de ${babyMonths} mois : texture, ingrédients à retirer, précautions"}`;
+{"name":"","category":"Déjeuner|Dîner|Petit-déjeuner|Snack|Dessert|Soupe|Salade","prepTime":0,"cookTime":0,"servings":1,"tags":[],"ingredients":["ingrédient 1 avec quantité","ingrédient 2 avec quantité"],"instructions":["Étape 1 : faire ceci","Étape 2 : faire cela"],"batchFriendly":true,"storageDays":0,"storageMethod":"Frigo|Congélateur|Température ambiante","storageTips":"","babyAdaptation":"adaptation pour bébé de ${babyMonths} mois : texture, ingrédients à retirer, précautions"}`;
 
   const result = await model.generateContent(prompt);
   const text = result.response.text();
@@ -142,7 +142,7 @@ La recette doit être optimisée batch cooking, se conserver plusieurs jours, et
 Ajoute aussi une adaptation pour un bébé de ${babyMonths} mois (sans sel ajouté, texture adaptée, ingrédients sûrs).
 
 Réponds UNIQUEMENT avec ce JSON (sans texte autour) :
-{"name":"","category":"Déjeuner|Dîner|Petit-déjeuner|Snack|Dessert|Soupe|Salade","prepTime":0,"cookTime":0,"servings":${peopleCount},"tags":[],"ingredients":"une ligne par ingrédient avec quantité pour ${peopleCount} personnes","instructions":"étapes numérotées, une par ligne","batchFriendly":true,"storageDays":0,"storageMethod":"Frigo|Congélateur|Température ambiante","storageTips":"","babyAdaptation":"adaptation pour bébé de ${babyMonths} mois : texture, ingrédients à retirer, précautions","batchNote":"reprendre ou compléter la note batch, ou null si aucune"}`;
+{"name":"","category":"Déjeuner|Dîner|Petit-déjeuner|Snack|Dessert|Soupe|Salade","prepTime":0,"cookTime":0,"servings":${peopleCount},"tags":[],"ingredients":["ingrédient 1 avec quantité pour ${peopleCount} personnes","ingrédient 2 avec quantité"],"instructions":["Étape 1 : faire ceci","Étape 2 : faire cela","Étape 3 : faire autre chose"],"batchFriendly":true,"storageDays":0,"storageMethod":"Frigo|Congélateur|Température ambiante","storageTips":"","babyAdaptation":"adaptation pour bébé de ${babyMonths} mois : texture, ingrédients à retirer, précautions","batchNote":"reprendre ou compléter la note batch, ou null si aucune"}`;
 
   const result = await model.generateContent(prompt);
   const text = result.response.text();
