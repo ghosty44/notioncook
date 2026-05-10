@@ -8,7 +8,7 @@ function getBabyAgeMonths() {
   return Math.floor((Date.now() - BABY_BIRTH.getTime()) / (1000 * 60 * 60 * 24 * 30.44));
 }
 
-async function generateBatchRecipe(preferences) {
+async function generateRecipe(preferences) {
   const model = genAI.getGenerativeModel({
     model: 'gemini-2.5-flash',
     generationConfig: { thinkingConfig: { thinkingBudget: 0 } },
@@ -16,11 +16,10 @@ async function generateBatchRecipe(preferences) {
 
   const babyMonths = getBabyAgeMonths();
 
-  const prompt = `Tu es un expert en batch cooking. Génère une recette adaptée au batch cooking pour 1 personne (base) à partir de ces préférences : "${preferences}".
-La recette DOIT se conserver plusieurs jours et être facile à réchauffer.
+  const prompt = `Tu es un chef cuisinier. Génère une recette savoureuse pour 1 personne à partir de ces préférences : "${preferences}".
 Ajoute aussi une adaptation pour un bébé de ${babyMonths} mois (sans sel ajouté, texture adaptée, ingrédients sûrs).
 Réponds UNIQUEMENT avec ce JSON (sans texte autour) :
-{"name":"","category":"Déjeuner|Dîner|Petit-déjeuner|Snack|Dessert|Soupe|Salade","prepTime":0,"cookTime":0,"servings":1,"tags":[],"ingredients":["ingrédient 1 avec quantité","ingrédient 2 avec quantité"],"instructions":["Étape 1 : faire ceci","Étape 2 : faire cela"],"batchFriendly":true,"storageDays":0,"storageMethod":"Frigo|Congélateur|Température ambiante","storageTips":"","babyAdaptation":"adaptation pour bébé de ${babyMonths} mois : texture, ingrédients à retirer, précautions"}`;
+{"name":"","category":"Déjeuner|Dîner|Petit-déjeuner|Snack|Dessert|Soupe|Salade","prepTime":0,"cookTime":0,"servings":1,"tags":[],"ingredients":["ingrédient 1 avec quantité","ingrédient 2 avec quantité"],"instructions":["Étape 1 : faire ceci","Étape 2 : faire cela"],"batchFriendly":false,"storageDays":0,"storageMethod":"Frigo|Congélateur|Température ambiante","storageTips":"","babyAdaptation":"adaptation pour bébé de ${babyMonths} mois : texture, ingrédients à retirer, précautions"}`;
 
   const result = await model.generateContent(prompt);
   const text = result.response.text();
@@ -191,4 +190,4 @@ Réponds UNIQUEMENT avec ce JSON (sans texte autour) :
   return JSON.parse(jsonMatch[0]);
 }
 
-module.exports = { generateBatchRecipe, generateMealPlan, regenerateMeal, expandMeal, generatePlatingSteps };
+module.exports = { generateRecipe, generateMealPlan, regenerateMeal, expandMeal, generatePlatingSteps };

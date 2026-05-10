@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useBatchStore } from '../store/batchStore';
 import RecipeModal from './RecipeModal';
 
 const CATEGORIES = ['Toutes', 'Déjeuner', 'Dîner', 'Petit-déjeuner', 'Soupe', 'Salade', 'Snack', 'Dessert', 'Autre'];
@@ -7,20 +6,15 @@ const CATEGORIES = ['Toutes', 'Déjeuner', 'Dîner', 'Petit-déjeuner', 'Soupe',
 export default function RecipeLibrary({ recipes, loading, error, onRefetch, onDeleteRecipe }) {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('Toutes');
-  const [batchOnly, setBatchOnly] = useState(false);
   const [selected, setSelected] = useState(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
-  const { addEntry, entries } = useBatchStore();
 
   const filtered = recipes.filter((r) => {
-    if (batchOnly && !r.batchFriendly) return false;
     if (category !== 'Toutes' && r.category !== category) return false;
     if (search && !r.name.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
-
-  const isInSession = (id) => entries.some((e) => e.recipe.id === id);
 
   async function handleDelete(e, recipeId) {
     e.stopPropagation();
@@ -61,7 +55,7 @@ export default function RecipeLibrary({ recipes, loading, error, onRefetch, onDe
         />
       </div>
 
-      <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1 mb-3">
+      <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1 mb-4">
         {CATEGORIES.map((c) => (
           <button
             key={c}
@@ -71,19 +65,6 @@ export default function RecipeLibrary({ recipes, loading, error, onRefetch, onDe
             }`}
           >{c}</button>
         ))}
-      </div>
-
-      <div
-        onClick={() => setBatchOnly(!batchOnly)}
-        className="flex items-center justify-between bg-white rounded-2xl px-4 py-3 mb-5 shadow-sm border border-black/5 cursor-pointer"
-      >
-        <div>
-          <div className="text-sm font-medium text-[#1c1c1e]">Batch-friendly uniquement</div>
-          <div className="text-xs text-[#8e8e93]">Se conserve bien au frigo / congélo</div>
-        </div>
-        <div className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${batchOnly ? 'bg-orange-500' : 'bg-[#e5e5ea]'}`}>
-          <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${batchOnly ? 'translate-x-5' : ''}`} />
-        </div>
       </div>
 
       <p className="text-xs text-[#8e8e93] mb-3">{filtered.length} recette{filtered.length !== 1 ? 's' : ''}</p>
@@ -107,9 +88,6 @@ export default function RecipeLibrary({ recipes, loading, error, onRefetch, onDe
                   <h3 className="font-semibold text-[#1c1c1e] leading-tight flex-1">{recipe.name}</h3>
                   <div className="flex items-center gap-1.5 shrink-0">
                     {recipe.babyAdaptation && <span title="Adaptation bébé disponible">👶</span>}
-                    {recipe.batchFriendly && (
-                      <span className="bg-green-100 text-green-600 text-xs font-medium px-2 py-0.5 rounded-full">✓ Batch</span>
-                    )}
                     {onDeleteRecipe && (
                       confirmDeleteId === recipe.id ? (
                         <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
@@ -140,20 +118,12 @@ export default function RecipeLibrary({ recipes, loading, error, onRefetch, onDe
                     )}
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-2 text-xs text-[#8e8e93] mb-3">
+                <div className="flex flex-wrap gap-2 text-xs text-[#8e8e93]">
                   {recipe.category && <span className="bg-[#f2f2f7] px-2.5 py-1 rounded-full">{recipe.category}</span>}
                   {recipe.prepTime > 0 && <span>🔪 {recipe.prepTime} min</span>}
                   {recipe.cookTime > 0 && <span>🔥 {recipe.cookTime} min</span>}
-                  {recipe.storageDays && <span>🗓 {recipe.storageDays}j</span>}
+                  {recipe.storageDays > 0 && <span>🗓 {recipe.storageDays}j</span>}
                 </div>
-                <button
-                  onClick={(e) => { e.stopPropagation(); if (!isInSession(recipe.id)) addEntry(recipe); }}
-                  className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-colors ${
-                    isInSession(recipe.id) ? 'bg-green-50 text-green-600' : 'bg-orange-500 text-white'
-                  }`}
-                >
-                  {isInSession(recipe.id) ? '✓ Dans la session' : '+ Ajouter à la session'}
-                </button>
               </div>
             </div>
           ))}

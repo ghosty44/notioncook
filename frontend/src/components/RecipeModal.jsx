@@ -1,13 +1,9 @@
 import React from 'react';
-import { useBatchStore } from '../store/batchStore';
 
 const BABY_BIRTH = new Date('2025-03-05');
 const babyAgeMonths = Math.floor((Date.now() - BABY_BIRTH.getTime()) / (1000 * 60 * 60 * 24 * 30.44));
 
 export default function RecipeModal({ recipe, onClose, showBatchNote = false }) {
-  const { addEntry, entries } = useBatchStore();
-  const isInSession = entries.some((e) => e.recipe.id === recipe.id);
-
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
@@ -35,9 +31,6 @@ export default function RecipeModal({ recipe, onClose, showBatchNote = false }) 
           <div className="flex flex-wrap gap-2 mb-5">
             {recipe.category && (
               <span className="bg-orange-100 text-orange-600 text-xs font-medium px-3 py-1 rounded-full">{recipe.category}</span>
-            )}
-            {recipe.batchFriendly && (
-              <span className="bg-green-100 text-green-600 text-xs font-medium px-3 py-1 rounded-full">✓ Batch-friendly</span>
             )}
             {recipe.storageMethod && (
               <span className="bg-blue-100 text-blue-600 text-xs font-medium px-3 py-1 rounded-full">{recipe.storageMethod}</span>
@@ -73,7 +66,7 @@ export default function RecipeModal({ recipe, onClose, showBatchNote = false }) 
             )}
           </div>
 
-          {/* Batch note — batch cooking section only */}
+          {/* Batch note — batch cooking context only */}
           {showBatchNote && recipe.batchNote && (
             <div className="mb-5">
               <div className="bg-green-50 border border-green-100 rounded-2xl p-4">
@@ -118,7 +111,7 @@ export default function RecipeModal({ recipe, onClose, showBatchNote = false }) 
 
           {/* Baby adaptation */}
           {recipe.babyAdaptation && (
-            <div className="mb-6">
+            <div className="mb-2">
               <h3 className="text-[15px] font-semibold text-[#1c1c1e] mb-2">
                 👶 Adaptation bébé
                 <span className="text-[#8e8e93] font-normal text-xs ml-1">({babyAgeMonths} mois)</span>
@@ -130,15 +123,6 @@ export default function RecipeModal({ recipe, onClose, showBatchNote = false }) 
               </div>
             </div>
           )}
-
-          <button
-            onClick={() => { if (!isInSession) addEntry(recipe); onClose(); }}
-            className={`w-full py-4 rounded-2xl font-semibold text-[15px] transition-colors ${
-              isInSession ? 'bg-green-50 text-green-600' : 'bg-orange-500 text-white'
-            }`}
-          >
-            {isInSession ? '✓ Déjà dans la session' : '+ Ajouter à la session'}
-          </button>
         </div>
       </div>
     </div>
