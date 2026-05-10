@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useBatch } from '../hooks/useBatch';
 import RecipeModal from './RecipeModal';
 
@@ -27,7 +27,13 @@ export default function AISuggestions({ onSaveToNotion }) {
   const [selected, setSelected] = useState(null);
   const [saved, setSaved] = useState({});
   const [saving, setSaving] = useState({});
-  const { generateRecipes, suggestions, loading, error } = useBatch();
+  const [inputMode, setInputMode] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [imageData, setImageData] = useState(null);
+  const [linkUrl, setLinkUrl] = useState('');
+  const fileInputRef = useRef(null);
+
+  const { generateRecipes, generateFromImage, generateFromUrl, suggestions, loading, error } = useBatch();
 
   function toggleOption(id) {
     setSelectedOptions((prev) =>
@@ -55,13 +61,46 @@ export default function AISuggestions({ onSaveToNotion }) {
     }
   }
 
+  function handleImagePick(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const dataUrl = ev.target.result;
+      const [meta, base64] = dataUrl.split(',');
+      const mimeType = meta.match(/:(.*?);/)[1];
+      setImagePreview(dataUrl);
+      setImageData({ base64, mimeType });
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async function handleAnalyze() {
+    if (inputMode === 'photo' && imageData) {
+      await generateFromImage(imageData.base64, imageData.mimeType);
+      setImagePreview(null);
+      setImageData(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    } else if (inputMode === 'link' && linkUrl.trim()) {
+      await generateFromUrl(linkUrl.trim());
+      setLinkUrl('');
+    }
+  }
+
+  function toggleMode(mode) {
+    setInputMode((prev) => (prev === mode ? null : mode));
+  }
+
   const canGenerate = !loading && (selectedOptions.length > 0 || preferences.trim().length > 0);
+  const canAnalyze = !loading && (
+    (inputMode === 'photo' && imageData != null) ||
+    (inputMode === 'link' && linkUrl.trim().length > 0)
+  );
 
   return (
     <div>
-      <div className="bg-white rounded-2xl shadow-sm border border-black/5 p-4 mb-5">
-
-        {/* Option chips */}
+      {/* Text-based generation card */}
+      <div className="bg-white rounded-2xl shadow-sm border border-black/5 p-4 mb-4">
         <p className="text-xs font-semibold text-[#8e8e93] uppercase tracking-wider mb-2">Options</p>
         <div className="flex flex-wrap gap-2 mb-4">
           {OPTION_CHIPS.map((chip) => {
@@ -82,10 +121,8 @@ export default function AISuggestions({ onSaveToNotion }) {
           })}
         </div>
 
-        {/* Divider */}
         <div className="border-t border-[#f2f2f7] mb-4" />
 
-        {/* Quick prompts */}
         <p className="text-xs font-semibold text-[#8e8e93] uppercase tracking-wider mb-2">Inspiration</p>
         <div className="flex flex-wrap gap-2 mb-3">
           {QUICK_PROMPTS.map((p) => (
@@ -101,7 +138,6 @@ export default function AISuggestions({ onSaveToNotion }) {
           ))}
         </div>
 
-        {/* Textarea */}
         <textarea
           value={preferences}
           onChange={(e) => setPreferences(e.target.value)}
@@ -131,6 +167,81 @@ export default function AISuggestions({ onSaveToNotion }) {
             {loading ? '⏳ Génération…' : '✨ Générer'}
           </button>
         </div>
+      </div>
+
+      {/* Photo / Link card */}
+      <div className="bg-white rounded-2xl shadow-sm border border-black/5 p-4 mb-5">
+        <p className="text-xs font-semibold text-[#8e8e93] uppercase tracking-wider mb-3">Depuis une image ou un lien</p>
+
+        <div className="flex gap-2 mb-4">
+          <button
+            onClick={() => toggleMode('photo')}
+            className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+              inputMode === 'photo' ? 'bg-orange-500 text-white' : 'bg-[#f2f2f7] text-[#1c1c1e]'
+            }`}
+          >📸 Photo</button>
+          <button
+            onClick={() => toggleMode('link')}
+            className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+              inputMode === 'link' ? 'bg-orange-500 text-white' : 'bg-[#f2f2f7] text-[#1c1c1e]'
+            }`}
+          >🔗 Lien</button>
+        </div>
+
+        {inputMode === 'photo' && (
+          <div className="mb-3">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleImagePick}
+              className="hidden"
+            />
+            {imagePreview ? (
+              <div className="flex items-center gap-3">
+                <img src={imagePreview} alt="Aperçu" className="w-20 h-20 rounded-xl object-cover border border-black/5" />
+                <div>
+                  <p className="text-sm text-[#1c1c1e] font-medium mb-1">Photo sélectionnée</p>
+                  <button
+                    onClick={() => {
+                      setImagePreview(null);
+                      setImageData(null);
+                      if (fileInputRef.current) fileInputRef.current.value = '';
+                    }}
+                    className="text-xs text-orange-500 font-semibold"
+                  >Changer</button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full py-8 border-2 border-dashed border-[#e5e5ea] rounded-xl text-[#8e8e93] text-sm hover:border-orange-300 hover:text-orange-400 transition-colors"
+              >
+                📷 Appuyer pour choisir une photo
+              </button>
+            )}
+          </div>
+        )}
+
+        {inputMode === 'link' && (
+          <input
+            type="url"
+            value={linkUrl}
+            onChange={(e) => setLinkUrl(e.target.value)}
+            placeholder="https://www.marmiton.org/recette…"
+            className="w-full bg-[#f2f2f7] rounded-xl px-3 py-2.5 text-sm placeholder-[#8e8e93] outline-none mb-3"
+          />
+        )}
+
+        {inputMode && (
+          <button
+            onClick={handleAnalyze}
+            disabled={!canAnalyze}
+            className="w-full bg-orange-500 text-white py-3 rounded-xl font-semibold text-sm disabled:opacity-40 transition-opacity"
+          >
+            {loading ? '⏳ Analyse en cours…' : '✨ Analyser'}
+          </button>
+        )}
       </div>
 
       {error && (
@@ -166,7 +277,6 @@ export default function AISuggestions({ onSaveToNotion }) {
                   <button
                     onClick={() => handleSave(recipe)}
                     disabled={saved[recipe.id] || saving[recipe.id]}
-                    title={saved[recipe.id] ? 'Sauvegardé dans Notion' : 'Sauvegarder dans Notion'}
                     className={`flex-1 text-sm py-2.5 rounded-xl font-semibold transition-all ${
                       saved[recipe.id]
                         ? 'bg-green-500 text-white'

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { generateRecipe, generateMealPlan, regenerateMeal, expandMeal, generatePlatingSteps } = require('../services/geminiService');
+const { generateRecipe, generateRecipeFromImage, generateRecipeFromUrl, generateMealPlan, regenerateMeal, expandMeal, generatePlatingSteps } = require('../services/geminiService');
 
 router.post('/generate', async (req, res, next) => {
   try {
@@ -10,6 +10,28 @@ router.post('/generate', async (req, res, next) => {
       Array.from({ length: Math.min(count, 4) }, () => generateRecipe(preferences.trim()))
     );
     res.json(recipes);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/recipe-from-image', async (req, res, next) => {
+  try {
+    const { imageBase64, mimeType } = req.body;
+    if (!imageBase64 || !mimeType) return res.status(400).json({ error: 'imageBase64 et mimeType requis' });
+    const recipe = await generateRecipeFromImage({ imageBase64, mimeType });
+    res.json(recipe);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/recipe-from-url', async (req, res, next) => {
+  try {
+    const { url } = req.body;
+    if (!url?.trim()) return res.status(400).json({ error: 'url requise' });
+    const recipe = await generateRecipeFromUrl({ url: url.trim() });
+    res.json(recipe);
   } catch (err) {
     next(err);
   }

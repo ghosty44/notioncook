@@ -19,5 +19,31 @@ export function useBatch() {
     }
   }
 
-  return { suggestions, loading, error, generateRecipes };
+  async function generateFromImage(imageBase64, mimeType) {
+    try {
+      setLoading(true);
+      setError(null);
+      const recipe = await api.post('/gemini/recipe-from-image', { imageBase64, mimeType });
+      setSuggestions((prev) => [recipe, ...prev]);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function generateFromUrl(url) {
+    try {
+      setLoading(true);
+      setError(null);
+      const recipe = await api.post('/gemini/recipe-from-url', { url });
+      setSuggestions((prev) => [recipe, ...prev]);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return { suggestions, loading, error, generateRecipes, generateFromImage, generateFromUrl };
 }

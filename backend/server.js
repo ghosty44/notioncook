@@ -15,7 +15,7 @@ app.use(cors({
   allowedHeaders: ['Content-Type'],
 }));
 
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: '15mb' }));
 
 app.use('/api/notion', notionRoutes);
 app.use('/api/gemini', geminiRoutes);

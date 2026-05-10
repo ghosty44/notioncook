@@ -1,4 +1,6 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const https = require('https');
+const http = require('http');
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
@@ -6,6 +8,39 @@ const BABY_BIRTH = new Date('2025-03-05');
 
 function getBabyAgeMonths() {
   return Math.floor((Date.now() - BABY_BIRTH.getTime()) / (1000 * 60 * 60 * 24 * 30.44));
+}
+
+const RECIPE_SCHEMA = (babyMonths) =>
+  `{"name":"","category":"Déjeuner|Dîner|Petit-déjeuner|Snack|Dessert|Soupe|Salade","prepTime":0,"cookTime":0,"servings":1,"tags":[],"ingredients":["ingrédient 1 avec quantité","ingrédient 2 avec quantité"],"instructions":["Étape 1 : faire ceci","Étape 2 : faire cela"],"batchFriendly":false,"storageDays":0,"storageMethod":"Frigo|Congélateur|Température ambiante","storageTips":"","babyAdaptation":"adaptation pour bébé de ${babyMonths} mois : texture, ingrédients à retirer, précautions"}`;
+
+function parseRecipeResponse(text) {
+  const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+  const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error('Réponse Gemini invalide : aucun JSON trouvé');
+  let recipe;
+  try { recipe = JSON.parse(jsonMatch[0]); }
+  catch { throw new Error('JSON invalide dans la réponse Gemini'); }
+  if (Array.isArray(recipe.ingredients)) recipe.ingredients = recipe.ingredients.join('\n');
+  if (Array.isArray(recipe.instructions)) recipe.instructions = recipe.instructions.join('\n');
+  recipe.id = `gemini-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  recipe.source = 'gemini';
+  return recipe;
+}
+
+function fetchUrl(url) {
+  return new Promise((resolve, reject) => {
+    const mod = url.startsWith('https') ? https : http;
+    const req = mod.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (res) => {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        return fetchUrl(res.headers.location).then(resolve).catch(reject);
+      }
+      const chunks = [];
+      res.on('data', (c) => chunks.push(c));
+      res.on('end', () => resolve({ body: Buffer.concat(chunks), contentType: res.headers['content-type'] || '' }));
+    });
+    req.on('error', reject);
+    req.setTimeout(10000, () => { req.destroy(); reject(new Error('Délai dépassé lors du chargement de l\'URL')); });
+  });
 }
 
 async function generateRecipe(preferences) {
@@ -19,25 +54,56 @@ async function generateRecipe(preferences) {
   const prompt = `Tu es un chef cuisinier. Génère une recette savoureuse pour 1 personne à partir de ces préférences : "${preferences}".
 Ajoute aussi une adaptation pour un bébé de ${babyMonths} mois (sans sel ajouté, texture adaptée, ingrédients sûrs).
 Réponds UNIQUEMENT avec ce JSON (sans texte autour) :
-{"name":"","category":"Déjeuner|Dîner|Petit-déjeuner|Snack|Dessert|Soupe|Salade","prepTime":0,"cookTime":0,"servings":1,"tags":[],"ingredients":["ingrédient 1 avec quantité","ingrédient 2 avec quantité"],"instructions":["Étape 1 : faire ceci","Étape 2 : faire cela"],"batchFriendly":false,"storageDays":0,"storageMethod":"Frigo|Congélateur|Température ambiante","storageTips":"","babyAdaptation":"adaptation pour bébé de ${babyMonths} mois : texture, ingrédients à retirer, précautions"}`;
+${RECIPE_SCHEMA(babyMonths)}`;
 
   const result = await model.generateContent(prompt);
-  const text = result.response.text();
-  const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+  return parseRecipeResponse(result.response.text());
+}
 
-  let recipe;
-  try {
-    recipe = JSON.parse(cleaned);
-  } catch {
-    throw new Error('Réponse Gemini invalide : ' + cleaned.slice(0, 200));
+async function generateRecipeFromImage({ imageBase64, mimeType }) {
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-2.5-flash',
+    generationConfig: { thinkingConfig: { thinkingBudget: 0 } },
+  });
+
+  const babyMonths = getBabyAgeMonths();
+  const imagePart = { inlineData: { data: imageBase64, mimeType } };
+  const prompt = `Tu es un chef cuisinier. Regarde cette photo et génère une recette savoureuse pour reproduire ou s'inspirer de ce plat, pour 1 personne. Si le plat n'est pas clairement identifiable, propose la recette la plus probable.
+Ajoute aussi une adaptation pour un bébé de ${babyMonths} mois (sans sel ajouté, texture adaptée, ingrédients sûrs).
+Réponds UNIQUEMENT avec ce JSON (sans texte autour) :
+${RECIPE_SCHEMA(babyMonths)}`;
+
+  const result = await model.generateContent([imagePart, prompt]);
+  return parseRecipeResponse(result.response.text());
+}
+
+async function generateRecipeFromUrl({ url }) {
+  const { body, contentType } = await fetchUrl(url);
+
+  if (contentType.includes('image/')) {
+    const mimeType = contentType.split(';')[0].trim();
+    return generateRecipeFromImage({ imageBase64: body.toString('base64'), mimeType });
   }
 
-  if (Array.isArray(recipe.ingredients)) recipe.ingredients = recipe.ingredients.join('\n');
-  if (Array.isArray(recipe.instructions)) recipe.instructions = recipe.instructions.join('\n');
+  const html = body.toString('utf-8');
+  const text = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 12000);
 
-  recipe.id = `gemini-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-  recipe.source = 'gemini';
-  return recipe;
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-2.5-flash',
+    generationConfig: { thinkingConfig: { thinkingBudget: 0 } },
+  });
+
+  const babyMonths = getBabyAgeMonths();
+  const prompt = `Tu es un chef cuisinier. Voici le contenu textuel d'une page web (${url}). Extrais ou génère une recette de cuisine pour 1 personne à partir de ce contenu.
+Ajoute aussi une adaptation pour un bébé de ${babyMonths} mois (sans sel ajouté, texture adaptée, ingrédients sûrs).
+Réponds UNIQUEMENT avec ce JSON (sans texte autour) :
+${RECIPE_SCHEMA(babyMonths)}
+
+Contenu de la page :
+${text}`;
+
+  const result = await model.generateContent(prompt);
+  return parseRecipeResponse(result.response.text());
 }
 
 async function generateMealPlan({ startDate, endDate, peopleCount = 4, preferences = '' }) {
@@ -180,7 +246,7 @@ async function generatePlatingSteps({ name, description }) {
   const context = description ? ` (${description})` : '';
   const prompt = `Tu es un chef cuisinier. Donne 3 à 5 étapes courtes pour dresser et présenter le plat "${name}"${context} de façon appétissante.
 Réponds UNIQUEMENT avec ce JSON (sans texte autour) :
-{"steps":["Étape 1 : ...","Étape 2 : ...","Étape 3 : ..."]}`;
+{"steps":["Étape 1 : ...","Étape 2 : ...","Étape 3 : "]}`;
 
   const result = await model.generateContent(prompt);
   const text = result.response.text();
@@ -190,4 +256,4 @@ Réponds UNIQUEMENT avec ce JSON (sans texte autour) :
   return JSON.parse(jsonMatch[0]);
 }
 
-module.exports = { generateRecipe, generateMealPlan, regenerateMeal, expandMeal, generatePlatingSteps };
+module.exports = { generateRecipe, generateRecipeFromImage, generateRecipeFromUrl, generateMealPlan, regenerateMeal, expandMeal, generatePlatingSteps };
