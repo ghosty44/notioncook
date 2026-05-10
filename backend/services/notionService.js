@@ -35,6 +35,7 @@ function pageToRecipe(page) {
     storageDays: props.StorageDays?.number ?? null,
     storageMethod: props.StorageMethod?.select?.name ?? null,
     babyAdaptation: richTextToString(props.BabyAdaptation?.rich_text),
+    notes: richTextToString(props.Notes?.rich_text),
     imageUrl: page.cover?.external?.url || page.cover?.file?.url || null,
     notionUrl: page.url,
     createdAt: page.created_time,
@@ -78,7 +79,8 @@ async function createRecipe(recipe) {
   if (recipe.category) props.Category = { select: { name: recipe.category } };
   if (recipe.storageDays) props.StorageDays = { number: recipe.storageDays };
   if (recipe.storageMethod) props.StorageMethod = { select: { name: recipe.storageMethod } };
-  if (recipe.babyAdaptation) props.BabyAdaptation = { rich_text: [{ text: { content: recipe.babyAdaptation } }] };
+  if (recipe.babyAdaptation) props.BabyAdaptation = { rich_text: toRichText(recipe.babyAdaptation) };
+  if (recipe.notes) props.Notes = { rich_text: toRichText(recipe.notes) };
 
   const response = await notion.pages.create({
     parent: { database_id: DATABASE_ID },
@@ -228,14 +230,14 @@ async function saveMealPlan({ plan, startDate, endDate, peopleCount, preferences
     throw new Error('NOTION_MEAL_PLANS_DB_ID ou NOTION_DAYS_DB_ID manquant dans .env');
   }
 
-  // Block overlapping plans (exact match is allowed — it’s an upsert)
+  // Block overlapping plans (exact match is allowed — it's an upsert)
   const overlaps = await findOverlappingPlans(startDate, endDate);
   if (overlaps.length > 0) {
     const name = richTextToString(overlaps[0].properties.Nom?.title) || 'Plan existant';
     const oStart = overlaps[0].properties['DateDébut']?.date?.start || '';
     const oEnd = overlaps[0].properties.DateFin?.date?.start || '';
     throw new Error(
-      `Ces dates chevauchent le plan « ${name} » (${oStart} → ${oEnd}). Supprimez-le d’abord ou choisissez une autre période.`
+      `Ces dates chevauchent le plan « ${name} » (${oStart} → ${oEnd}). Supprimez-le d'abord ou choisissez une autre période.`
     );
   }
 

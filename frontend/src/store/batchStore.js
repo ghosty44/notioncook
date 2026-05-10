@@ -19,6 +19,12 @@ export const useBatchStore = create(
       // Drive cart
       driveItems: [],
 
+      // Favorites (array of recipe id or name)
+      favorites: [],
+
+      // Comments keyed by recipe id or name
+      comments: {},
+
       setDateRange: (start, end) => set({ startDate: start, endDate: end }),
       setMealPlan: (plan) => set({ mealPlan: plan, planLoading: false, planError: null }),
       setPlanLoading: (v) => set({ planLoading: v }),
@@ -76,6 +82,16 @@ export const useBatchStore = create(
       removeDriveItem: (id) =>
         set((s) => ({ driveItems: s.driveItems.filter((i) => i.id !== id) })),
       clearDrive: () => set({ driveItems: [] }),
+
+      toggleFavorite: (recipe) =>
+        set((s) => {
+          const key = recipe.id || recipe.name;
+          const isFav = s.favorites.includes(key);
+          return { favorites: isFav ? s.favorites.filter((k) => k !== key) : [...s.favorites, key] };
+        }),
+
+      setComment: (recipeKey, text) =>
+        set((s) => ({ comments: { ...s.comments, [recipeKey]: text } })),
     }),
     { name: 'batch-session' }
   )

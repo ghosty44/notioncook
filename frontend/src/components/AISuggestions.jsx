@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { useBatch } from '../hooks/useBatch';
+import { useBatchStore } from '../store/batchStore';
 import RecipeModal from './RecipeModal';
 
 const OPTION_CHIPS = [
@@ -64,6 +65,7 @@ export default function AISuggestions({ onSaveToNotion }) {
   const fileInputRef = useRef(null);
 
   const { generateRecipes, generateFromImage, generateFromUrl, suggestions, loading, error } = useBatch();
+  const { favorites, toggleFavorite, comments } = useBatchStore();
 
   function toggleOption(id) {
     setSelectedOptions((prev) =>
@@ -82,7 +84,9 @@ export default function AISuggestions({ onSaveToNotion }) {
     if (saved[recipe.id] || saving[recipe.id] || !onSaveToNotion) return;
     setSaving((p) => ({ ...p, [recipe.id]: true }));
     try {
-      await onSaveToNotion(recipe);
+      const recipeKey = recipe.id || recipe.name;
+      const notes = comments[recipeKey] || '';
+      await onSaveToNotion({ ...recipe, notes });
       setSaved((p) => ({ ...p, [recipe.id]: true }));
     } catch {
       // silently fail
@@ -274,47 +278,65 @@ export default function AISuggestions({ onSaveToNotion }) {
 
       {suggestions.length > 0 && (
         <div className="space-y-3">
-          {suggestions.map((recipe) => (
-            <div key={recipe.id} className="bg-white rounded-2xl shadow-sm border border-black/5 p-4">
-              <div className="flex items-start justify-between gap-3 mb-2">
-                <h3 className="font-semibold text-[#1c1c1e] leading-tight">{recipe.name}</h3>
-                {recipe.babyAdaptation && <span className="shrink-0">👶</span>}
-              </div>
+          {suggestions.map((recipe) => {
+            const recipeKey = recipe.id || recipe.name;
+            const isFav = favorites.includes(recipeKey);
+            const recipeComment = comments[recipeKey];
+            return (
+              <div key={recipe.id} className="bg-white rounded-2xl shadow-sm border border-black/5 p-4">
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <h3 className="font-semibold text-[#1c1c1e] leading-tight">{recipe.name}</h3>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={() => toggleFavorite(recipe)}
+                      className="text-sm leading-none"
+                      aria-label={isFav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                    >
+                      {isFav ? '❤️' : '🤍'}
+                    </button>
+                    {recipe.babyAdaptation && <span>👶</span>}
+                  </div>
+                </div>
 
-              <div className="flex flex-wrap gap-2 text-xs text-[#8e8e93] mb-2">
-                {recipe.category && <span className="bg-[#f2f2f7] px-2.5 py-1 rounded-full">{recipe.category}</span>}
-                {recipe.prepTime > 0 && <span>🔪 {recipe.prepTime} min</span>}
-                {recipe.cookTime > 0 && <span>🔥 {recipe.cookTime} min</span>}
-                {recipe.storageDays > 0 && <span>🗓 {recipe.storageDays}j {recipe.storageMethod || ''}</span>}
-              </div>
+                <div className="flex flex-wrap gap-2 text-xs text-[#8e8e93] mb-2">
+                  {recipe.category && <span className="bg-[#f2f2f7] px-2.5 py-1 rounded-full">{recipe.category}</span>}
+                  {recipe.prepTime > 0 && <span>🔪 {recipe.prepTime} min</span>}
+                  {recipe.cookTime > 0 && <span>🔥 {recipe.cookTime} min</span>}
+                  {recipe.storageDays > 0 && <span>🗓 {recipe.storageDays}j {recipe.storageMethod || ''}</span>}
+                </div>
 
-              {recipe.storageTips && (
-                <p className="text-xs text-[#8e8e93] italic mb-3">{recipe.storageTips}</p>
-              )}
-
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setSelected(recipe)}
-                  className="flex-1 text-sm bg-[#f2f2f7] text-[#1c1c1e] py-2.5 rounded-xl font-medium"
-                >Voir</button>
-                {onSaveToNotion && (
-                  <button
-                    onClick={() => handleSave(recipe)}
-                    disabled={saved[recipe.id] || saving[recipe.id]}
-                    className={`flex-1 text-sm py-2.5 rounded-xl font-semibold transition-all ${
-                      saved[recipe.id]
-                        ? 'bg-green-500 text-white'
-                        : saving[recipe.id]
-                        ? 'bg-[#f2f2f7] text-[#8e8e93]'
-                        : 'bg-orange-500 text-white'
-                    }`}
-                  >
-                    {saving[recipe.id] ? '…' : saved[recipe.id] ? '✓ Sauvegardé' : '💾 Ajouter à Notion'}
-                  </button>
+                {recipe.storageTips && (
+                  <p className="text-xs text-[#8e8e93] italic mb-2">{recipe.storageTips}</p>
                 )}
+
+                {recipeComment && (
+                  <p className="text-xs text-[#8e8e93] bg-[#f2f2f7] rounded-xl px-3 py-2 mb-3 line-clamp-2">💬 {recipeComment}</p>
+                )}
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setSelected(recipe)}
+                    className="flex-1 text-sm bg-[#f2f2f7] text-[#1c1c1e] py-2.5 rounded-xl font-medium"
+                  >Voir</button>
+                  {onSaveToNotion && (
+                    <button
+                      onClick={() => handleSave(recipe)}
+                      disabled={saved[recipe.id] || saving[recipe.id]}
+                      className={`flex-1 text-sm py-2.5 rounded-xl font-semibold transition-all ${
+                        saved[recipe.id]
+                          ? 'bg-green-500 text-white'
+                          : saving[recipe.id]
+                          ? 'bg-[#f2f2f7] text-[#8e8e93]'
+                          : 'bg-orange-500 text-white'
+                      }`}
+                    >
+                      {saving[recipe.id] ? '…' : saved[recipe.id] ? '✓ Sauvegardé' : '💾 Ajouter à Notion'}
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

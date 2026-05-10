@@ -1,6 +1,7 @@
 import React from 'react';
 import { Clock, Users, Baby, ExternalLink } from 'lucide-react';
 import clsx from 'clsx';
+import { useBatchStore } from '../store/batchStore';
 
 const CATEGORY_COLORS = {
   'Petit-déjeuner': 'badge-orange',
@@ -15,6 +16,9 @@ const CATEGORY_COLORS = {
 
 export default function RecipeCard({ recipe, onClick, compact = false, draggable = false, className = '' }) {
   const totalTime = (recipe.prepTime || 0) + (recipe.cookTime || 0);
+  const { favorites, toggleFavorite } = useBatchStore();
+  const recipeKey = recipe.id || recipe.name;
+  const isFav = favorites.includes(recipeKey);
 
   return (
     <div
@@ -43,17 +47,26 @@ export default function RecipeCard({ recipe, onClick, compact = false, draggable
         <h3 className={clsx('font-semibold text-gray-800 leading-tight', compact ? 'text-sm' : 'text-base')}>
           {recipe.name}
         </h3>
-        {recipe.notionUrl && !compact && (
-          <a
-            href={recipe.notionUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            className="text-gray-400 hover:text-brand-500 shrink-0"
+        <div className="flex items-center gap-1.5 shrink-0">
+          {recipe.notionUrl && !compact && (
+            <a
+              href={recipe.notionUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="text-gray-400 hover:text-brand-500"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          )}
+          <button
+            onClick={(e) => { e.stopPropagation(); toggleFavorite(recipe); }}
+            className="text-sm leading-none"
+            aria-label={isFav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
           >
-            <ExternalLink className="w-3.5 h-3.5" />
-          </a>
-        )}
+            {isFav ? '❤️' : '🤍'}
+          </button>
+        </div>
       </div>
 
       {/* Meta row */}

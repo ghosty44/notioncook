@@ -13,9 +13,27 @@ function getRecipeItems(recipe) {
   }));
 }
 
+function scaleIngredients(ingredients, from, to) {
+  if (from === to || !ingredients) return ingredients;
+  const ratio = to / from;
+  return ingredients.replace(/\b(\d+([.,]\d+)?)\b/g, (_, num) => {
+    const n = parseFloat(num.replace(',', '.')) * ratio;
+    if (Number.isInteger(n)) return n.toString();
+    const rounded = parseFloat(n.toFixed(1));
+    return Number.isInteger(rounded) ? rounded.toString() : rounded.toFixed(1).replace('.', ',');
+  });
+}
+
 export default function RecipeModal({ recipe, onClose, showBatchNote = false }) {
-  const { addDriveItems } = useBatchStore();
+  const { addDriveItems, favorites, toggleFavorite, comments, setComment } = useBatchStore();
   const [showDriveModal, setShowDriveModal] = useState(false);
+  const [servings, setServings] = useState(recipe.servings || 1);
+
+  const recipeKey = recipe.id || recipe.name;
+  const isFav = favorites.includes(recipeKey);
+  const comment = comments[recipeKey] || '';
+  const baseServings = recipe.servings || 1;
+  const scaledIngredients = scaleIngredients(recipe.ingredients, baseServings, servings);
 
   return (
     <>
@@ -35,10 +53,19 @@ export default function RecipeModal({ recipe, onClose, showBatchNote = false }) 
           <div className="p-6">
             <div className="flex items-start justify-between gap-4 mb-3">
               <h2 className="text-[22px] font-bold text-[#1c1c1e] leading-tight">{recipe.name}</h2>
-              <button
-                onClick={onClose}
-                className="bg-[#f2f2f7] rounded-full w-8 h-8 flex items-center justify-center text-[#8e8e93] text-sm shrink-0"
-              >×</button>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={() => toggleFavorite(recipe)}
+                  className="bg-[#f2f2f7] rounded-full w-8 h-8 flex items-center justify-center text-sm"
+                  aria-label={isFav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                >
+                  {isFav ? '❤️' : '🤍'}
+                </button>
+                <button
+                  onClick={onClose}
+                  className="bg-[#f2f2f7] rounded-full w-8 h-8 flex items-center justify-center text-[#8e8e93] text-sm"
+                >×</button>
+              </div>
             </div>
 
             {/* Badges */}
@@ -69,7 +96,17 @@ export default function RecipeModal({ recipe, onClose, showBatchNote = false }) 
                 </div>
               )}
               <div className="bg-[#f2f2f7] rounded-2xl p-3 text-center">
-                <div className="text-lg font-bold text-[#1c1c1e]">{recipe.servings || 1}<span className="text-xs font-normal"> pers.</span></div>
+                <div className="flex items-center justify-center gap-1.5">
+                  <button
+                    onClick={() => setServings((n) => Math.max(1, n - 1))}
+                    className="w-5 h-5 rounded-full bg-white shadow text-[#1c1c1e] text-xs font-bold leading-none flex items-center justify-center"
+                  >−</button>
+                  <span className="text-lg font-bold text-[#1c1c1e]">{servings}</span>
+                  <button
+                    onClick={() => setServings((n) => Math.min(20, n + 1))}
+                    className="w-5 h-5 rounded-full bg-white shadow text-[#1c1c1e] text-xs font-bold leading-none flex items-center justify-center"
+                  >+</button>
+                </div>
                 <div className="text-xs text-[#8e8e93]">Portions</div>
               </div>
               {recipe.storageDays > 0 && (
@@ -95,10 +132,14 @@ export default function RecipeModal({ recipe, onClose, showBatchNote = false }) 
               <div className="mb-5">
                 <h3 className="text-[15px] font-semibold text-[#1c1c1e] mb-2">
                   Ingrédients
-                  <span className="text-[#8e8e93] font-normal text-xs ml-1">(pour {recipe.servings || 1} personne{(recipe.servings || 1) > 1 ? 's' : ''})</span>
+                  {servings !== baseServings ? (
+                    <span className="text-orange-500 font-normal text-xs ml-1">(adapté pour {servings} pers.)</span>
+                  ) : (
+                    <span className="text-[#8e8e93] font-normal text-xs ml-1">(pour {servings} personne{servings > 1 ? 's' : ''})</span>
+                  )}
                 </h3>
                 <div className="bg-[#f2f2f7] rounded-2xl overflow-hidden">
-                  {recipe.ingredients.split('\n').filter(Boolean).map((line, i, arr) => (
+                  {scaledIngredients.split('\n').filter(Boolean).map((line, i, arr) => (
                     <div key={i} className={`flex items-start gap-3 px-4 py-2.5 ${i < arr.length - 1 ? 'border-b border-white' : ''}`}>
                       <span className="text-orange-500 mt-0.5">•</span>
                       <span className="text-sm text-[#1c1c1e]">{line.replace(/^[-•*]\s*/, '')}</span>
@@ -137,6 +178,18 @@ export default function RecipeModal({ recipe, onClose, showBatchNote = false }) 
                 </div>
               </div>
             )}
+
+            {/* Comment */}
+            <div className="mb-4">
+              <h3 className="text-[15px] font-semibold text-[#1c1c1e] mb-2">📝 Commentaire</h3>
+              <textarea
+                value={comment}
+                onChange={(e) => setComment(recipeKey, e.target.value)}
+                placeholder="Tes notes sur cette recette…"
+                rows={3}
+                className="w-full bg-[#f2f2f7] rounded-2xl px-4 py-3 text-sm placeholder-[#8e8e93] outline-none resize-none"
+              />
+            </div>
 
             {/* Drive button */}
             {recipe.ingredients && (
