@@ -32,7 +32,7 @@ const CATEGORY_KEYWORDS = {
   'Boissons': ['eau', 'jus', 'café', 'thé', 'vin', 'bière'],
 };
 
-function categorizeIngredient(line) {
+export function categorizeIngredient(line) {
   const lower = line.toLowerCase();
   for (const [cat, kws] of Object.entries(CATEGORY_KEYWORDS)) {
     if (kws.some((kw) => lower.includes(kw))) return cat;
@@ -40,7 +40,7 @@ function categorizeIngredient(line) {
   return 'Divers';
 }
 
-function parseIngredientLines(text) {
+export function parseIngredientLines(text) {
   if (!text) return [];
   return text
     .split('\n')

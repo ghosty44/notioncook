@@ -1,7 +1,17 @@
 import React, { useState } from 'react';
+import { useBatchStore } from '../store/batchStore';
+import { parseIngredientLines, categorizeIngredient } from '../utils/shoppingListUtils';
 import RecipeModal from './RecipeModal';
+import DriveReviewModal from './DriveReviewModal';
 
 const CATEGORIES = ['Toutes', 'Déjeuner', 'Dîner', 'Petit-déjeuner', 'Soupe', 'Salade', 'Snack', 'Dessert', 'Autre'];
+
+function getRecipeItems(recipe) {
+  return parseIngredientLines(recipe.ingredients || '').map((text) => ({
+    text,
+    category: categorizeIngredient(text),
+  }));
+}
 
 export default function RecipeLibrary({ recipes, loading, error, onRefetch, onDeleteRecipe }) {
   const [search, setSearch] = useState('');
@@ -9,6 +19,8 @@ export default function RecipeLibrary({ recipes, loading, error, onRefetch, onDe
   const [selected, setSelected] = useState(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
+  const [driveRecipe, setDriveRecipe] = useState(null);
+  const { addDriveItems } = useBatchStore();
 
   const filtered = recipes.filter((r) => {
     if (category !== 'Toutes' && r.category !== category) return false;
@@ -88,6 +100,13 @@ export default function RecipeLibrary({ recipes, loading, error, onRefetch, onDe
                   <h3 className="font-semibold text-[#1c1c1e] leading-tight flex-1">{recipe.name}</h3>
                   <div className="flex items-center gap-1.5 shrink-0">
                     {recipe.babyAdaptation && <span title="Adaptation bébé disponible">👶</span>}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setDriveRecipe(recipe); }}
+                      title="Ajouter au panier Drive"
+                      className="text-[#c7c7cc] text-base hover:text-orange-400 transition-colors"
+                    >
+                      🛒
+                    </button>
                     {onDeleteRecipe && (
                       confirmDeleteId === recipe.id ? (
                         <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
@@ -131,6 +150,15 @@ export default function RecipeLibrary({ recipes, loading, error, onRefetch, onDe
       )}
 
       {selected && <RecipeModal recipe={selected} onClose={() => setSelected(null)} />}
+
+      {driveRecipe && (
+        <DriveReviewModal
+          items={getRecipeItems(driveRecipe)}
+          sourceName={driveRecipe.name}
+          onConfirm={(items) => { addDriveItems(items); setDriveRecipe(null); }}
+          onClose={() => setDriveRecipe(null)}
+        />
+      )}
     </div>
   );
 }

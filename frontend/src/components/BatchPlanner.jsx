@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useBatchStore } from '../store/batchStore';
 import api from '../utils/api';
+import DriveReviewModal from './DriveReviewModal';
 
 const PREF_CHIPS = [
   { id: 'vegetarien', label: '🥦 Végétarien' },
@@ -81,6 +82,7 @@ export default function BatchPlanner() {
     startDate, endDate, mealPlan, planLoading, planError, planPreferences,
     peopleCount, setPeopleCount, setDateRange, setMealPlan, setPlanLoading,
     setPlanError, setPlanPreferences, clearMealPlan, updateMeal, updateBatchSessionDate,
+    addDriveItems,
   } = useBatchStore();
 
   const [activeChips, setActiveChips] = useState([]);
@@ -96,6 +98,7 @@ export default function BatchPlanner() {
   const [confirmDeletePlanId, setConfirmDeletePlanId] = useState(null);
   const [deletingPlanId, setDeletingPlanId] = useState(null);
   const [editingBatchDateIndex, setEditingBatchDateIndex] = useState(null);
+  const [showDriveModal, setShowDriveModal] = useState(false);
 
   useEffect(() => {
     setSavedPlan(null);
@@ -222,7 +225,12 @@ export default function BatchPlanner() {
     }
   }
 
-  // ── Loading ─────────────────────────────────────────────
+  const driveItems = mealPlan?.shoppingList?.map((i) => ({
+    text: i.quantity ? `${i.name} — ${i.quantity}` : i.name,
+    category: i.category || 'Divers',
+  })) ?? [];
+
+  // ── Loading
   if (planLoading) {
     return (
       <div className="text-center py-28">
@@ -236,7 +244,7 @@ export default function BatchPlanner() {
     );
   }
 
-  // ── Plan display ─────────────────────────────────────────
+  // ── Plan display
   if (mealPlan) {
     const totalBatchTime = mealPlan.batchSessions?.reduce((a, s) => a + (s.totalMinutes || 0), 0) ?? 0;
     const savings = mealPlan.savingsEstimate;
@@ -377,8 +385,8 @@ export default function BatchPlanner() {
           </div>
         ))}
 
-        {/* Save to Notion */}
-        <div className="pt-2">
+        {/* Save + Drive */}
+        <div className="pt-2 space-y-2">
           {savedPlan ? (
             <div className="space-y-2">
               <a
@@ -420,14 +428,31 @@ export default function BatchPlanner() {
             </button>
           )}
           {saveError && (
-            <p className="text-xs text-red-500 text-center mt-2">{saveError}</p>
+            <p className="text-xs text-red-500 text-center">{saveError}</p>
+          )}
+          {driveItems.length > 0 && (
+            <button
+              onClick={() => setShowDriveModal(true)}
+              className="w-full bg-[#f2f2f7] text-[#3a3a3c] py-3 rounded-2xl font-semibold text-sm flex items-center justify-center gap-2"
+            >
+              🛒 Ajouter les courses au panier Drive
+            </button>
           )}
         </div>
+
+        {showDriveModal && (
+          <DriveReviewModal
+            items={driveItems}
+            sourceName={`Plan ${startDate ? 'du ' + startDate : ''}`}
+            onConfirm={(items) => { addDriveItems(items); setShowDriveModal(false); }}
+            onClose={() => setShowDriveModal(false)}
+          />
+        )}
       </div>
     );
   }
 
-  // ── Setup form ──────────────────────────────────────────
+  // ── Setup form
   return (
     <div className="space-y-4">
       <div className="bg-white rounded-2xl shadow-sm border border-black/5 p-4">
@@ -573,7 +598,6 @@ export default function BatchPlanner() {
         </div>
       )}
 
-      {/* Overlap warning */}
       {overlappingPlan && (
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 text-sm text-amber-700">
           ⚠️ Ces dates chevauchent « {overlappingPlan.name} » ({overlappingPlan.startDate} → {overlappingPlan.endDate}).
