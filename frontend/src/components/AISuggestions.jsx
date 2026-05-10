@@ -20,6 +20,36 @@ const QUICK_PROMPTS = [
   'Soupe ou ragout comfort food',
 ];
 
+const MAX_IMAGE_PX = 1024;
+
+function resizeAndEncode(file) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      let { width, height } = img;
+      if (width > MAX_IMAGE_PX || height > MAX_IMAGE_PX) {
+        if (width >= height) {
+          height = Math.round(height * MAX_IMAGE_PX / width);
+          width = MAX_IMAGE_PX;
+        } else {
+          width = Math.round(width * MAX_IMAGE_PX / height);
+          height = MAX_IMAGE_PX;
+        }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      const [meta, base64] = dataUrl.split(',');
+      resolve({ dataUrl, base64, mimeType: 'image/jpeg' });
+    };
+    img.src = objectUrl;
+  });
+}
+
 export default function AISuggestions({ onSaveToNotion }) {
   const [preferences, setPreferences] = useState('');
   const [selectedOptions, setSelectedOptions] = useState([]);
@@ -61,18 +91,12 @@ export default function AISuggestions({ onSaveToNotion }) {
     }
   }
 
-  function handleImagePick(e) {
+  async function handleImagePick(e) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const dataUrl = ev.target.result;
-      const [meta, base64] = dataUrl.split(',');
-      const mimeType = meta.match(/:(.*?);/)[1];
-      setImagePreview(dataUrl);
-      setImageData({ base64, mimeType });
-    };
-    reader.readAsDataURL(file);
+    const { dataUrl, base64, mimeType } = await resizeAndEncode(file);
+    setImagePreview(dataUrl);
+    setImageData({ base64, mimeType });
   }
 
   async function handleAnalyze() {
