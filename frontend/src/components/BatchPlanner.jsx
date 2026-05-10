@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useBatchStore } from '../store/batchStore';
 import api from '../utils/api';
-import RecipeModal from './RecipeModal';
 
 const PREF_CHIPS = [
   { id: 'vegetarien', label: '🥦 Végétarien' },
@@ -29,120 +28,51 @@ function formatMinutes(min) {
   return m ? `${h}h${m}` : `${h}h`;
 }
 
-// Slim row for the Today banner — no expand
-function TodayMealRow({ meal, icon, label }) {
+function MealRow({ meal, icon, label, regenerating, onRegenerate }) {
   if (!meal) return null;
   return (
-    <div className="px-4 py-3">
-      <div className="flex items-start gap-2.5">
-        <span className="text-base shrink-0 mt-0.5">{icon}</span>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[11px] font-semibold text-orange-600 uppercase tracking-wider">{label}</span>
-            {meal.batchNote && (
-              <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium">♻️ batch</span>
-            )}
-          </div>
-          <p className="text-[14px] font-semibold text-[#1c1c1e] mt-0.5 leading-tight">{meal.name}</p>
-          {meal.description && (
-            <p className="text-xs text-[#8e8e93] mt-0.5 leading-relaxed">{meal.description}</p>
+    <div className="p-4">
+      <div className="flex items-center justify-between mb-1.5">
+        <div className="flex items-center gap-2">
+          <span className="text-sm">{icon}</span>
+          <span className="text-[11px] font-semibold text-[#8e8e93] uppercase tracking-wider">{label}</span>
+          {meal.batchNote && (
+            <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium">♻️ batch</span>
           )}
         </div>
-      </div>
-    </div>
-  );
-}
-
-// Card that auto-fetches the full recipe on mount
-function MealCard({ meal, icon, label, regenerating, onRegenerate, peopleCount, preferences }) {
-  const [loading, setLoading] = useState(true);
-  const [fullRecipe, setFullRecipe] = useState(null);
-  const [showModal, setShowModal] = useState(false);
-
-  useEffect(() => {
-    if (!meal?.name) return;
-    setLoading(true);
-    setFullRecipe(null);
-    let cancelled = false;
-    api.post('/gemini/expand-meal', {
-      name: meal.name,
-      description: meal.description,
-      batchNote: meal.batchNote,
-      prepTime: meal.prepTime,
-      cookTime: meal.cookTime,
-      peopleCount,
-      preferences,
-    }).then((recipe) => {
-      if (!cancelled) { setFullRecipe(recipe); setLoading(false); }
-    }).catch(() => {
-      if (!cancelled) setLoading(false);
-    });
-    return () => { cancelled = true; };
-  }, [meal?.name]);
-
-  if (!meal) return null;
-
-  return (
-    <>
-      <div className="p-4">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <span className="text-sm">{icon}</span>
-            <span className="text-[11px] font-semibold text-[#8e8e93] uppercase tracking-wider">{label}</span>
-            {meal.batchNote && (
-              <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium">♻️ batch</span>
-            )}
-          </div>
-          {onRegenerate && (
-            <button
-              onClick={onRegenerate}
-              disabled={regenerating}
-              title="Régénérer ce repas"
-              className="w-7 h-7 flex items-center justify-center rounded-full bg-[#f2f2f7] disabled:opacity-50 transition-opacity"
-            >
-              {regenerating
-                ? <div className="w-3.5 h-3.5 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
-                : <span className="text-sm">🔄</span>}
-            </button>
-          )}
-        </div>
-        <p className="text-[15px] font-bold text-[#1c1c1e] leading-tight mb-1">{meal.name}</p>
-        {meal.description && (
-          <p className="text-xs text-[#8e8e93] leading-relaxed mb-2">{meal.description}</p>
-        )}
-        {(meal.prepTime > 0 || meal.cookTime > 0) && (
-          <div className="flex gap-2 flex-wrap mb-3">
-            {meal.prepTime > 0 && (
-              <span className="text-[11px] text-[#8e8e93] bg-[#f2f2f7] px-2 py-1 rounded-full">🔪 {meal.prepTime} min</span>
-            )}
-            {meal.cookTime > 0 && (
-              <span className="text-[11px] text-[#8e8e93] bg-[#f2f2f7] px-2 py-1 rounded-full">🔥 {meal.cookTime} min</span>
-            )}
-          </div>
-        )}
-        {meal.batchNote && (
-          <div className="bg-green-50 border border-green-100 rounded-xl px-3 py-2 mb-3">
-            <p className="text-xs text-green-700 leading-relaxed">♻️ {meal.batchNote}</p>
-          </div>
-        )}
-        {loading ? (
-          <div className="w-full bg-[#f2f2f7] py-2 rounded-xl flex items-center justify-center gap-2">
-            <div className="w-3.5 h-3.5 border-2 border-[#c7c7cc] border-t-transparent rounded-full animate-spin" />
-            <span className="text-[13px] text-[#8e8e93]">Développement en cours…</span>
-          </div>
-        ) : fullRecipe ? (
+        {onRegenerate && (
           <button
-            onClick={() => setShowModal(true)}
-            className="w-full bg-[#f2f2f7] text-[#3a3a3c] py-2 rounded-xl text-[13px] font-semibold flex items-center justify-center gap-2 active:opacity-70 transition-opacity"
+            onClick={onRegenerate}
+            disabled={regenerating}
+            title="Régénérer ce repas"
+            className="w-7 h-7 flex items-center justify-center rounded-full bg-[#f2f2f7] disabled:opacity-50 transition-opacity"
           >
-            📖 Voir la recette complète
+            {regenerating
+              ? <div className="w-3.5 h-3.5 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+              : <span className="text-sm">🔄</span>}
           </button>
-        ) : null}
+        )}
       </div>
-      {showModal && fullRecipe && (
-        <RecipeModal recipe={fullRecipe} showBatchNote onClose={() => setShowModal(false)} />
+      <p className="text-[15px] font-bold text-[#1c1c1e] leading-tight mb-1">{meal.name}</p>
+      {meal.description && (
+        <p className="text-xs text-[#8e8e93] leading-relaxed mb-2">{meal.description}</p>
       )}
-    </>
+      {(meal.prepTime > 0 || meal.cookTime > 0) && (
+        <div className="flex gap-2 flex-wrap mb-2">
+          {meal.prepTime > 0 && (
+            <span className="text-[11px] text-[#8e8e93] bg-[#f2f2f7] px-2 py-1 rounded-full">🔪 {meal.prepTime} min</span>
+          )}
+          {meal.cookTime > 0 && (
+            <span className="text-[11px] text-[#8e8e93] bg-[#f2f2f7] px-2 py-1 rounded-full">🔥 {meal.cookTime} min</span>
+          )}
+        </div>
+      )}
+      {meal.batchNote && (
+        <div className="bg-green-50 border border-green-100 rounded-xl px-3 py-2">
+          <p className="text-xs text-green-700 leading-relaxed">♻️ {meal.batchNote}</p>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -155,6 +85,7 @@ export default function BatchPlanner() {
 
   const [activeChips, setActiveChips] = useState([]);
   const [saving, setSaving] = useState(false);
+  const [savingStep, setSavingStep] = useState(null);
   const [savedPlan, setSavedPlan] = useState(null);
   const [saveError, setSaveError] = useState(null);
   const [regenerating, setRegenerating] = useState({});
@@ -224,6 +155,32 @@ export default function BatchPlanner() {
     setSaving(true);
     setSaveError(null);
     try {
+      // 1. Générer et enregistrer les recettes complètes dans Notion
+      setSavingStep('recipes');
+      const allMeals = mealPlan.days.flatMap((day) => [
+        day.lunch,
+        day.dinner,
+      ]).filter((m) => m?.name);
+
+      await Promise.all(allMeals.map(async (meal) => {
+        try {
+          const recipe = await api.post('/gemini/expand-meal', {
+            name: meal.name,
+            description: meal.description,
+            batchNote: meal.batchNote,
+            prepTime: meal.prepTime,
+            cookTime: meal.cookTime,
+            peopleCount,
+            preferences: planPreferences,
+          });
+          await api.post('/notion/recipes', recipe);
+        } catch {
+          // échec silencieux par recette — on continue
+        }
+      }));
+
+      // 2. Enregistrer le plan
+      setSavingStep('plan');
       const result = await api.post('/notion/meal-plan', {
         plan: mealPlan, startDate, endDate, peopleCount, preferences: planPreferences,
       });
@@ -232,6 +189,7 @@ export default function BatchPlanner() {
       setSaveError(err.message || "Erreur lors de l'enregistrement");
     } finally {
       setSaving(false);
+      setSavingStep(null);
     }
   }
 
@@ -323,9 +281,9 @@ export default function BatchPlanner() {
             <div className="px-4 pt-3 pb-1">
               <p className="text-[11px] font-semibold text-orange-600 uppercase tracking-wider">📅 Aujourd'hui</p>
             </div>
-            <TodayMealRow meal={todayDay.lunch} icon="🌞" label="Midi" />
+            <MealRow meal={todayDay.lunch} icon="🌞" label="Midi" />
             <div className="border-t border-orange-100" />
-            <TodayMealRow meal={todayDay.dinner} icon="🌙" label="Soir" />
+            <MealRow meal={todayDay.dinner} icon="🌙" label="Soir" />
           </div>
         )}
 
@@ -399,24 +357,20 @@ export default function BatchPlanner() {
             <div className="px-4 py-2.5 bg-[#f9f9f9] border-b border-[#f2f2f7]">
               <p className="text-[13px] font-bold text-[#1c1c1e]">{day.dayLabel}</p>
             </div>
-            <MealCard
+            <MealRow
               meal={day.lunch}
               icon="🌞"
               label="Midi"
               regenerating={!!regenerating[`${day.date}-lunch`]}
               onRegenerate={() => handleRegenerate(day.date, 'lunch')}
-              peopleCount={peopleCount}
-              preferences={planPreferences}
             />
             <div className="border-t border-[#f2f2f7]" />
-            <MealCard
+            <MealRow
               meal={day.dinner}
               icon="🌙"
               label="Soir"
               regenerating={!!regenerating[`${day.date}-dinner`]}
               onRegenerate={() => handleRegenerate(day.date, 'dinner')}
-              peopleCount={peopleCount}
-              preferences={planPreferences}
             />
           </div>
         ))}
@@ -456,10 +410,10 @@ export default function BatchPlanner() {
               {saving ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Enregistrement dans Notion…
+                  {savingStep === 'recipes' ? 'Génération des recettes…' : 'Enregistrement dans Notion…'}
                 </>
               ) : (
-                '💾 Enregistrer dans Notion'
+                '💾 Valider et enregistrer dans Notion'
               )}
             </button>
           )}
