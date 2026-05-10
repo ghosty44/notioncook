@@ -155,13 +155,8 @@ export default function BatchPlanner() {
     setSaving(true);
     setSaveError(null);
     try {
-      // 1. Générer et enregistrer les recettes complètes dans Notion
       setSavingStep('recipes');
-      const allMeals = mealPlan.days.flatMap((day) => [
-        day.lunch,
-        day.dinner,
-      ]).filter((m) => m?.name);
-
+      const allMeals = mealPlan.days.flatMap((day) => [day.lunch, day.dinner]).filter((m) => m?.name);
       await Promise.all(allMeals.map(async (meal) => {
         try {
           const recipe = await api.post('/gemini/expand-meal', {
@@ -174,12 +169,8 @@ export default function BatchPlanner() {
             preferences: planPreferences,
           });
           await api.post('/notion/recipes', recipe);
-        } catch {
-          // échec silencieux par recette — on continue
-        }
+        } catch { /* échec silencieux par recette */ }
       }));
-
-      // 2. Enregistrer le plan
       setSavingStep('plan');
       const result = await api.post('/notion/meal-plan', {
         plan: mealPlan, startDate, endDate, peopleCount, preferences: planPreferences,
@@ -201,9 +192,8 @@ export default function BatchPlanner() {
         date, mealType, currentPlan: mealPlan, peopleCount, preferences: planPreferences,
       });
       updateMeal(date, mealType, meal);
-    } catch {
-      // silently fail — user can retry
-    } finally {
+    } catch { /* silently fail */ }
+    finally {
       setRegenerating((r) => { const next = { ...r }; delete next[key]; return next; });
     }
   }
@@ -214,11 +204,8 @@ export default function BatchPlanner() {
       const fullPlan = await api.get(`/notion/meal-plans/${plan.id}`);
       setMealPlan(fullPlan);
       if (plan.startDate) setDateRange(plan.startDate, plan.endDate);
-    } catch {
-      // silently fail
-    } finally {
-      setLoadingPlanId(null);
-    }
+    } catch { /* silently fail */ }
+    finally { setLoadingPlanId(null); }
   }
 
   async function handleDeletePlan(planId) {
@@ -226,9 +213,8 @@ export default function BatchPlanner() {
     try {
       await api.delete(`/notion/meal-plans/${planId}`);
       setHistoryPlans((prev) => prev.filter((p) => p.id !== planId));
-    } catch {
-      // silently fail
-    } finally {
+    } catch { /* silently fail */ }
+    finally {
       setDeletingPlanId(null);
       setConfirmDeletePlanId(null);
     }
@@ -253,23 +239,24 @@ export default function BatchPlanner() {
     const totalBatchTime = mealPlan.batchSessions?.reduce((a, s) => a + (s.totalMinutes || 0), 0) ?? 0;
     return (
       <div className="space-y-4">
+
+        {/* Back button */}
+        <button
+          onClick={clearMealPlan}
+          className="flex items-center gap-1.5 text-sm text-[#8e8e93] font-medium active:opacity-60 transition-opacity"
+        >
+          ← Nouveau plan
+        </button>
+
         {/* Summary */}
-        <div className="bg-white rounded-2xl shadow-sm border border-black/5 p-4 flex items-center justify-between animate-page-enter">
-          <div>
-            <p className="text-[15px] font-semibold text-[#1c1c1e]">
-              {mealPlan.days?.length ?? 0} jours · {(mealPlan.days?.length ?? 0) * 2} repas
-            </p>
-            <p className="text-xs text-[#8e8e93] mt-0.5">
-              {mealPlan.batchSessions?.length ?? 0} session{(mealPlan.batchSessions?.length ?? 0) > 1 ? 's' : ''} batch
-              {totalBatchTime > 0 ? ` · ${formatMinutes(totalBatchTime)} de prép.` : ''}
-            </p>
-          </div>
-          <button
-            onClick={clearMealPlan}
-            className="text-xs bg-[#f2f2f7] text-orange-500 font-semibold px-3 py-1.5 rounded-full"
-          >
-            Modifier
-          </button>
+        <div className="bg-white rounded-2xl shadow-sm border border-black/5 p-4 animate-page-enter">
+          <p className="text-[15px] font-semibold text-[#1c1c1e]">
+            {mealPlan.days?.length ?? 0} jours · {(mealPlan.days?.length ?? 0) * 2} repas
+          </p>
+          <p className="text-xs text-[#8e8e93] mt-0.5">
+            {mealPlan.batchSessions?.length ?? 0} session{(mealPlan.batchSessions?.length ?? 0) > 1 ? 's' : ''} batch
+            {totalBatchTime > 0 ? ` · ${formatMinutes(totalBatchTime)} de prép.` : ''}
+          </p>
         </div>
 
         {/* Today banner */}
