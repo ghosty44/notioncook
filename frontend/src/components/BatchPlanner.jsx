@@ -84,6 +84,7 @@ export default function BatchPlanner() {
   } = useBatchStore();
 
   const [activeChips, setActiveChips] = useState([]);
+  const [customPrompt, setCustomPrompt] = useState('');
   const [saving, setSaving] = useState(false);
   const [savingStep, setSavingStep] = useState(null);
   const [savedPlan, setSavedPlan] = useState(null);
@@ -135,10 +136,11 @@ export default function BatchPlanner() {
       );
       return;
     }
-    const prefs = activeChips
+    const chipLabels = activeChips
       .map((id) => PREF_CHIPS.find((c) => c.id === id)?.label.replace(/^[^\s]+\s/, ''))
       .filter(Boolean)
       .join(', ');
+    const prefs = [chipLabels, customPrompt.trim()].filter(Boolean).join('. ');
     setPlanPreferences(prefs);
     setPlanLoading(true);
     setPlanError(null);
@@ -479,6 +481,17 @@ export default function BatchPlanner() {
             </button>
           ))}
         </div>
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-sm border border-black/5 p-4">
+        <p className="text-[11px] font-semibold text-[#8e8e93] uppercase tracking-wider mb-3">Instructions pour l'IA</p>
+        <textarea
+          value={customPrompt}
+          onChange={(e) => setCustomPrompt(e.target.value)}
+          placeholder="Ex : j'ai du poulet à utiliser, évite le poisson cette semaine, budget serré…"
+          rows={3}
+          className="w-full rounded-xl border border-black/10 bg-[#f2f2f7] px-3.5 py-2.5 text-[15px] text-[#1c1c1e] placeholder:text-[#3c3c43]/40 resize-none focus:outline-none focus:ring-2 focus:ring-orange-400/30"
+        />
       </div>
 
       {/* History */}
