@@ -172,4 +172,23 @@ Réponds UNIQUEMENT avec ce JSON (sans texte autour) :
   return recipe;
 }
 
-module.exports = { generateBatchRecipe, generateMealPlan, regenerateMeal, expandMeal };
+async function generatePlatingSteps({ name, description }) {
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-2.5-flash',
+    generationConfig: { thinkingConfig: { thinkingBudget: 0 } },
+  });
+
+  const context = description ? ` (${description})` : '';
+  const prompt = `Tu es un chef cuisinier. Donne 3 à 5 étapes courtes pour dresser et présenter le plat "${name}"${context} de façon appétissante.
+Réponds UNIQUEMENT avec ce JSON (sans texte autour) :
+{"steps":["Étape 1 : ...","Étape 2 : ...","Étape 3 : ..."]}`;
+
+  const result = await model.generateContent(prompt);
+  const text = result.response.text();
+  const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+  const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error('Réponse Gemini invalide');
+  return JSON.parse(jsonMatch[0]);
+}
+
+module.exports = { generateBatchRecipe, generateMealPlan, regenerateMeal, expandMeal, generatePlatingSteps };
