@@ -239,6 +239,7 @@ export default function BatchPlanner() {
   // ── Plan display ─────────────────────────────────────────
   if (mealPlan) {
     const totalBatchTime = mealPlan.batchSessions?.reduce((a, s) => a + (s.totalMinutes || 0), 0) ?? 0;
+    const savings = mealPlan.savingsEstimate;
     return (
       <div className="space-y-4">
 
@@ -259,6 +260,18 @@ export default function BatchPlanner() {
             {mealPlan.batchSessions?.length ?? 0} session{(mealPlan.batchSessions?.length ?? 0) > 1 ? 's' : ''} batch
             {totalBatchTime > 0 ? ` · ${formatMinutes(totalBatchTime)} de prép.` : ''}
           </p>
+          {savings?.savings > 0 && (
+            <div className="mt-3 flex items-center justify-between bg-green-50 border border-green-100 rounded-xl px-3 py-2.5">
+              <div>
+                <p className="text-[13px] font-semibold text-green-700">~{savings.savings}€ économisés</p>
+                <p className="text-[11px] text-green-600/70 mt-0.5">vs achat à l'unité (~{savings.individualTotal}€)</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[13px] font-semibold text-[#1c1c1e]">~{savings.batchTotal}€</p>
+                <p className="text-[11px] text-[#8e8e93] mt-0.5">courses batch</p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Today banner */}

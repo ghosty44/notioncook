@@ -66,8 +66,14 @@ RÈGLES BATCH COOKING STRICTES :
 4. Varie les saveurs malgré les bases communes : même ingrédient → plats différents
 5. Adapte toutes les quantités pour ${peopleCount} personne${peopleCount > 1 ? 's' : ''}
 
+ESTIMATION DES ÉCONOMIES :
+- "batchTotal" : coût total estimé de la liste de courses batch (en €, entier)
+- "individualTotal" : coût estimé si on achetait les ingrédients à l'unité pour chaque repas séparément (pas de mutualisation, petits conditionnements, prix unitaires plus élevés ~30% en moyenne)
+- "savings" : individualTotal - batchTotal
+Utilise les prix moyens des supermarchés français (Carrefour, Leclerc) pour estimer.
+
 Retourne UNIQUEMENT ce JSON valide, sans aucun texte autour, sans markdown :
-{"days":[{"date":"YYYY-MM-DD","dayLabel":"Lundi 13 octobre","lunch":{"name":"Nom plat midi","description":"Description 1 phrase","prepTime":5,"cookTime":0,"batchNote":"Utilise X du batch dimanche"},"dinner":{"name":"Nom plat soir","description":"Description 1 phrase","prepTime":10,"cookTime":15,"batchNote":null}}],"batchSessions":[{"date":"YYYY-MM-DD","dayLabel":"Dimanche 12 octobre","label":"Préparation du dimanche","tasks":["Rôtir 800g de poulet (45 min) → utilisé lun midi + mar soir","Cuire 400g de riz (20 min) → utilisé mar bowl + jeu soir","Rôtir légumes (35 min) → utilisé lun soir + mer midi"],"totalMinutes":100}],"shoppingList":[{"name":"Blanc de poulet","quantity":"800g","category":"Viandes & Poissons"},{"name":"Riz basmati","quantity":"400g","category":"Féculents & Céréales"}]}
+{"days":[{"date":"YYYY-MM-DD","dayLabel":"Lundi 13 octobre","lunch":{"name":"Nom plat midi","description":"Description 1 phrase","prepTime":5,"cookTime":0,"batchNote":"Utilise X du batch dimanche"},"dinner":{"name":"Nom plat soir","description":"Description 1 phrase","prepTime":10,"cookTime":15,"batchNote":null}}],"batchSessions":[{"date":"YYYY-MM-DD","dayLabel":"Dimanche 12 octobre","label":"Préparation du dimanche","tasks":["Rôtir 800g de poulet (45 min) → utilisé lun midi + mar soir","Cuire 400g de riz (20 min) → utilisé mar bowl + jeu soir","Rôtir légumes (35 min) → utilisé lun soir + mer midi"],"totalMinutes":100}],"shoppingList":[{"name":"Blanc de poulet","quantity":"800g","category":"Viandes & Poissons"},{"name":"Riz basmati","quantity":"400g","category":"Féculents & Céréales"}],"savingsEstimate":{"batchTotal":42,"individualTotal":68,"savings":26}}
 
 Génère maintenant le plan complet pour les ${nbDays} jours en respectant rigoureusement les règles batch cooking.`;
 
