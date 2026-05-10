@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useBatchStore } from '../store/batchStore';
 import { parseIngredientLines, categorizeIngredient } from '../utils/shoppingListUtils';
 import DriveReviewModal from './DriveReviewModal';
@@ -13,15 +14,21 @@ function getRecipeItems(recipe) {
   }));
 }
 
+// Handles integers, decimals (1,5 or 1.5) and fractions (1/2, 3/4)
 function scaleIngredients(ingredients, from, to) {
   if (from === to || !ingredients) return ingredients;
   const ratio = to / from;
-  return ingredients.replace(/\b(\d+([.,]\d+)?)\b/g, (_, num) => {
-    const n = parseFloat(num.replace(',', '.')) * ratio;
-    if (Number.isInteger(n)) return n.toString();
-    const rounded = parseFloat(n.toFixed(1));
-    return Number.isInteger(rounded) ? rounded.toString() : rounded.toFixed(1).replace('.', ',');
-  });
+  return ingredients.replace(
+    /\b(\d+)\s*\/\s*(\d+)\b|\b(\d+([.,]\d+)?)\b/g,
+    (match, fracN, fracD, intPart) => {
+      const n = fracN !== undefined
+        ? (parseInt(fracN) / parseInt(fracD)) * ratio
+        : parseFloat(intPart.replace(',', '.')) * ratio;
+      if (Number.isInteger(n)) return n.toString();
+      const rounded = parseFloat(n.toFixed(1));
+      return Number.isInteger(rounded) ? rounded.toString() : rounded.toFixed(1).replace('.', ',');
+    }
+  );
 }
 
 export default function RecipeModal({ recipe, onClose, showBatchNote = false }) {
@@ -35,7 +42,7 @@ export default function RecipeModal({ recipe, onClose, showBatchNote = false }) 
   const baseServings = recipe.servings || 1;
   const scaledIngredients = scaleIngredients(recipe.ingredients, baseServings, servings);
 
-  return (
+  const content = (
     <>
       <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
         <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
@@ -214,4 +221,6 @@ export default function RecipeModal({ recipe, onClose, showBatchNote = false }) 
       )}
     </>
   );
+
+  return createPortal(content, document.body);
 }
