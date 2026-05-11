@@ -39,13 +39,13 @@ router.post('/recipe-from-url', async (req, res, next) => {
 
 router.post('/meal-plan', async (req, res, next) => {
   try {
-    const { startDate, endDate, peopleCount = 4, preferences = '' } = req.body;
+    const { startDate, endDate, peopleCount = 4, preferences = '', existingMeals } = req.body;
     if (!startDate || !endDate) return res.status(400).json({ error: 'Dates de début et de fin requises' });
     const start = new Date(startDate + 'T00:00:00');
     const end = new Date(endDate + 'T00:00:00');
     const nbDays = Math.round((end - start) / 86400000) + 1;
     if (nbDays < 1 || nbDays > 14) return res.status(400).json({ error: 'Période entre 1 et 14 jours' });
-    const plan = await generateMealPlan({ startDate, endDate, peopleCount, preferences });
+    const plan = await generateMealPlan({ startDate, endDate, peopleCount, preferences, existingMeals: existingMeals || [] });
     res.json(plan);
   } catch (err) {
     next(err);

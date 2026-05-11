@@ -99,7 +99,7 @@ ${text}`;
   return parseRecipeResponse(result.response.text());
 }
 
-async function generateMealPlan({ startDate, endDate, peopleCount = 4, preferences = '' }) {
+async function generateMealPlan({ startDate, endDate, peopleCount = 4, preferences = '', existingMeals = [] }) {
   const model = genAI.getGenerativeModel({
     model: 'gemini-2.5-flash',
     generationConfig: { thinkingConfig: { thinkingBudget: 0 } },
@@ -112,7 +112,12 @@ async function generateMealPlan({ startDate, endDate, peopleCount = 4, preferenc
   const babyStr = preferences?.toLowerCase().includes('bébé')
     ? `\nBébé de ${babyMonths} mois présent : prévoir au moins 1 repas/jour sans sel, texture douce.`
     : '';
-  const prompt = `Tu es un chef expert en batch cooking. Génère un plan de repas optimisé batch cooking pour ${nbDays} jour${nbDays > 1 ? 's' : ''} (du ${startDate} au ${endDate}) pour ${peopleCount} personne${peopleCount > 1 ? 's' : ''}.${prefStr}${babyStr}
+  const existingStr = existingMeals.length > 0
+    ? '\n\nREPAS DÉJÀ PLANIFIÉS (ne pas remplacer ces créneaux) :\n' +
+      existingMeals.map((m) => `- ${m.date} ${m.mealType === 'lunch' ? 'midi' : 'soir'} : ${m.name}`).join('\n') +
+      '\nPour ces créneaux, génère uniquement le repas manquant. Intègre ces plats dans les sessions batch si possible.'
+    : '';
+  const prompt = `Tu es un chef expert en batch cooking. Génère un plan de repas optimisé batch cooking pour ${nbDays} jour${nbDays > 1 ? 's' : ''} (du ${startDate} au ${endDate}) pour ${peopleCount} personne${peopleCount > 1 ? 's' : ''}.${prefStr}${babyStr}${existingStr}
 
 RÈGLES BATCH COOKING STRICTES :
 1. Un même ingrédient (ex: poulet rôti, riz cuit, légumes grillés) DOIT servir dans 2 à 3 repas différents
