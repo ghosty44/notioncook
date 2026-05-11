@@ -1,5 +1,3 @@
-// Categorizes and consolidates ingredients from a list of planned meals
-
 const CATEGORY_KEYWORDS = {
   'Légumes & Fruits': [
     'tomate', 'carotte', 'courgette', 'épinard', 'salade', 'poireau', 'oignon', 'ail',
@@ -29,99 +27,63 @@ const CATEGORY_KEYWORDS = {
     'sel', 'poivre', 'épice', 'herbe', 'thym', 'laurier', 'romarin', 'basilic',
     'persil', 'coriandre', 'cumin', 'paprika', 'curry', 'curcuma', 'cannelle',
     'sucre', 'miel', 'confiture', 'chocolat', 'cacao', 'vanille',
-    'bouillon', 'concentré de tomate', 'tomate pelée', 'lentilles en boîte',
+    'bouillon', 'concentré de tomate', 'tomate pelée',
   ],
-  'Boissons': [
-    'eau', 'jus', 'lait', 'café', 'thé', 'vin', 'bière',
-  ],
+  'Boissons': ['eau', 'jus', 'café', 'thé', 'vin', 'bière'],
 };
 
-function categorizeIngredient(ingredientLine) {
-  const lower = ingredientLine.toLowerCase();
-  for (const [category, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
-    if (keywords.some((kw) => lower.includes(kw))) return category;
+export function categorizeIngredient(line) {
+  const lower = line.toLowerCase();
+  for (const [cat, kws] of Object.entries(CATEGORY_KEYWORDS)) {
+    if (kws.some((kw) => lower.includes(kw))) return cat;
   }
   return 'Divers';
 }
 
-function parseIngredientLines(ingredientsText) {
-  if (!ingredientsText) return [];
-  return ingredientsText
+export function parseIngredientLines(text) {
+  if (!text) return [];
+  return text
     .split('\n')
-    .map((line) => line.replace(/^[-•*]\s*/, '').trim())
-    .filter((line) => line.length > 2);
+    .map((l) => l.replace(/^[-•*\d.)\s]+/, '').trim())
+    .filter((l) => l.length > 2);
 }
 
-function buildMultiplierLabel(servings, adultCount, babyMode) {
-  const base = adultCount / (servings || 2);
-  return babyMode ? base * 1.25 : base; // baby adds ~25%
-}
-
-export function generateShoppingList(mealPlan, selectedDates, adultCount = 2) {
+export function generateShoppingList(entries, peopleCount = 4) {
   const categorized = {};
 
-  selectedDates.forEach((date) => {
-    const day = mealPlan[date];
-    if (!day) return;
+  entries.forEach(({ recipe }) => {
+    const multiplier = peopleCount / (recipe.servings || 1);
+    const lines = parseIngredientLines(recipe.ingredients);
 
-    ['breakfast', 'lunch', 'dinner'].forEach((slot) => {
-      const entry = day[slot];
-      if (!entry?.recipe) return;
+    lines.forEach((line) => {
+      const cat = categorizeIngredient(line);
+      if (!categorized[cat]) categorized[cat] = [];
 
-      const { recipe, babyMode } = entry;
-      const multiplier = buildMultiplierLabel(recipe.servings, adultCount, babyMode);
-      const lines = parseIngredientLines(recipe.ingredients);
+      const key = line.toLowerCase().split(' ').slice(-3).join(' ');
+      const existing = categorized[cat].find((i) => i.key === key);
 
-      lines.forEach((line) => {
-        const category = categorizeIngredient(line);
-        if (!categorized[category]) categorized[category] = [];
-
-        // Check if this ingredient already exists (simple dedup by first word)
-        const key = line.toLowerCase().split(' ').slice(-3).join(' ');
-        const existing = categorized[category].find((i) => i.key === key);
-
-        if (existing) {
-          existing.count += multiplier;
-          existing.sources.push({ date, slot, recipe: recipe.name });
-        } else {
-          categorized[category].push({
-            key,
-            text: line,
-            count: multiplier,
-            sources: [{ date, slot, recipe: recipe.name }],
-            checked: false,
-          });
-        }
-      });
+      if (existing) {
+        existing.count += multiplier;
+        if (!existing.sources.includes(recipe.name)) existing.sources.push(recipe.name);
+      } else {
+        categorized[cat].push({ key, text: line, count: multiplier, sources: [recipe.name] });
+      }
     });
   });
 
-  // Sort categories and items
-  const sorted = {};
-  const categoryOrder = [
-    'Légumes & Fruits',
-    'Viandes & Poissons',
-    'Produits laitiers & Œufs',
-    'Féculents & Céréales',
-    'Épicerie & Condiments',
-    'Boissons',
-    'Divers',
+  const ORDER = [
+    'Légumes & Fruits', 'Viandes & Poissons', 'Produits laitiers & Œufs',
+    'Féculents & Céréales', 'Épicerie & Condiments', 'Boissons', 'Divers',
   ];
-
-  categoryOrder.forEach((cat) => {
-    if (categorized[cat]?.length) {
-      sorted[cat] = categorized[cat].sort((a, b) => a.text.localeCompare(b.text));
-    }
+  const sorted = {};
+  ORDER.forEach((cat) => {
+    if (categorized[cat]?.length) sorted[cat] = categorized[cat].sort((a, b) => a.text.localeCompare(b.text));
   });
-  Object.keys(categorized).forEach((cat) => {
-    if (!sorted[cat]) sorted[cat] = categorized[cat];
-  });
-
+  Object.keys(categorized).forEach((cat) => { if (!sorted[cat]) sorted[cat] = categorized[cat]; });
   return sorted;
 }
 
 export function formatIngredientLine(item) {
-  if (item.count === 1) return item.text;
-  const multiplied = Math.round(item.count * 10) / 10;
-  return `${item.text} (×${multiplied})`;
+  const mult = Math.round(item.count * 10) / 10;
+  return mult === 1 ? item.text : `${item.text} (×${mult})`;
 }

@@ -1,49 +1,79 @@
 const express = require('express');
 const router = express.Router();
-const { getAllRecipes, getRecipeById, createRecipe, searchRecipes } = require('../services/notionService');
+const {
+  getAllRecipes, getRecipeById, createRecipe, updateRecipe, searchRecipes,
+  saveMealPlan, getMealPlans, getMealPlanById,
+  deleteRecipe, deleteMealPlan,
+} = require('../services/notionService');
 
 router.get('/recipes', async (_req, res, next) => {
-  try {
-    const recipes = await getAllRecipes();
-    res.json(recipes);
-  } catch (err) {
-    next(err);
-  }
+  try { res.json(await getAllRecipes()); } catch (err) { next(err); }
 });
 
 router.get('/recipes/search', async (req, res, next) => {
   try {
     const { q } = req.query;
     if (!q) return res.json([]);
-    const results = await searchRecipes(q);
-    res.json(results);
-  } catch (err) {
-    next(err);
-  }
+    res.json(await searchRecipes(q));
+  } catch (err) { next(err); }
 });
 
 router.get('/recipes/:id', async (req, res, next) => {
-  try {
-    const recipe = await getRecipeById(req.params.id);
-    res.json(recipe);
-  } catch (err) {
-    next(err);
-  }
+  try { res.json(await getRecipeById(req.params.id)); } catch (err) { next(err); }
 });
 
 router.post('/recipes', async (req, res, next) => {
   try {
-    const { name, ingredients, instructions, prepTime, cookTime, servings, tags, category, babyAdaptation } = req.body;
+    const {
+      name, ingredients, instructions, prepTime, cookTime, servings,
+      tags, category, batchFriendly, storageDays, storageMethod, babyAdaptation,
+      notes, favori, dejaFait,
+    } = req.body;
     if (!name) return res.status(400).json({ error: 'Le nom de la recette est requis' });
-
     const created = await createRecipe({
       name, ingredients, instructions, prepTime, cookTime,
-      servings: servings || 2, tags, category, babyAdaptation,
+      servings: servings || 1, tags, category,
+      batchFriendly: batchFriendly || false,
+      storageDays: storageDays || null,
+      storageMethod: storageMethod || null,
+      babyAdaptation: babyAdaptation || '',
+      notes: notes || '',
+      favori: favori || false,
+      dejaFait: dejaFait || false,
     });
     res.status(201).json(created);
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
+});
+
+router.patch('/recipes/:id', async (req, res, next) => {
+  try { res.json(await updateRecipe(req.params.id, req.body)); }
+  catch (err) { next(err); }
+});
+
+router.delete('/recipes/:id', async (req, res, next) => {
+  try { await deleteRecipe(req.params.id); res.json({ ok: true }); } catch (err) { next(err); }
+});
+
+router.post('/meal-plan', async (req, res, next) => {
+  try {
+    const { plan, startDate, endDate, peopleCount, preferences } = req.body;
+    if (!plan?.days?.length) return res.status(400).json({ error: 'Plan invalide' });
+    if (!startDate || !endDate) return res.status(400).json({ error: 'Dates requises' });
+    const result = await saveMealPlan({ plan, startDate, endDate, peopleCount: peopleCount || 1, preferences: preferences || '' });
+    res.status(201).json(result);
+  } catch (err) { next(err); }
+});
+
+router.get('/meal-plans', async (_req, res, next) => {
+  try { res.json(await getMealPlans()); } catch (err) { next(err); }
+});
+
+router.get('/meal-plans/:id', async (req, res, next) => {
+  try { res.json(await getMealPlanById(req.params.id)); } catch (err) { next(err); }
+});
+
+router.delete('/meal-plans/:id', async (req, res, next) => {
+  try { await deleteMealPlan(req.params.id); res.json({ ok: true }); } catch (err) { next(err); }
 });
 
 module.exports = router;

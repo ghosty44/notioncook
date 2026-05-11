@@ -1,15 +1,15 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import api from '../utils/api';
 
 export function useRecipes() {
   const [recipes, setRecipes] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const fetchRecipes = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  async function fetchRecipes() {
     try {
+      setLoading(true);
+      setError(null);
       const data = await api.get('/notion/recipes');
       setRecipes(data);
     } catch (err) {
@@ -17,23 +17,26 @@ export function useRecipes() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }
 
-  useEffect(() => {
-    fetchRecipes();
-  }, [fetchRecipes]);
-
-  const saveToNotion = useCallback(async (recipe) => {
+  async function saveToNotion(recipe) {
     const saved = await api.post('/notion/recipes', recipe);
     setRecipes((prev) => [...prev, saved]);
     return saved;
-  }, []);
+  }
 
-  const searchRecipes = useCallback(async (query) => {
-    if (!query.trim()) return recipes;
-    const results = await api.get(`/notion/recipes/search?q=${encodeURIComponent(query)}`);
-    return results;
-  }, [recipes]);
+  async function deleteRecipeById(id) {
+    await api.delete(`/notion/recipes/${id}`);
+    setRecipes((prev) => prev.filter((r) => r.id !== id));
+  }
 
-  return { recipes, loading, error, refetch: fetchRecipes, saveToNotion, searchRecipes };
+  async function updateRecipe(id, fields) {
+    const updated = await api.patch(`/notion/recipes/${id}`, fields);
+    setRecipes((prev) => prev.map((r) => r.id === id ? { ...r, ...updated } : r));
+    return updated;
+  }
+
+  useEffect(() => { fetchRecipes(); }, []);
+
+  return { recipes, loading, error, refetch: fetchRecipes, saveToNotion, deleteRecipeById, updateRecipe };
 }

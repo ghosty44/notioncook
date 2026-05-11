@@ -1,6 +1,7 @@
 import React from 'react';
 import { Clock, Users, Baby, ExternalLink } from 'lucide-react';
 import clsx from 'clsx';
+import { useBatchStore } from '../store/batchStore';
 
 const CATEGORY_COLORS = {
   'Petit-déjeuner': 'badge-orange',
@@ -13,8 +14,20 @@ const CATEGORY_COLORS = {
   'Autre': 'bg-gray-100 text-gray-600 badge',
 };
 
-export default function RecipeCard({ recipe, onClick, compact = false, draggable = false, className = '' }) {
+export default function RecipeCard({ recipe, onClick, compact = false, draggable = false, className = '', onToggleFavorite }) {
   const totalTime = (recipe.prepTime || 0) + (recipe.cookTime || 0);
+  const { favorites, toggleFavorite } = useBatchStore();
+  const recipeKey = recipe.id || recipe.name;
+  const isFav = recipe.notionUrl ? (recipe.favori ?? false) : favorites.includes(recipeKey);
+
+  function handleFavClick(e) {
+    e.stopPropagation();
+    if (onToggleFavorite) {
+      onToggleFavorite(recipe);
+    } else {
+      toggleFavorite(recipe);
+    }
+  }
 
   return (
     <div
@@ -27,7 +40,6 @@ export default function RecipeCard({ recipe, onClick, compact = false, draggable
         className
       )}
     >
-      {/* Image placeholder or cover */}
       {!compact && recipe.imageUrl && (
         <div className="h-32 -mx-4 -mt-4 mb-3 overflow-hidden">
           <img
@@ -43,20 +55,28 @@ export default function RecipeCard({ recipe, onClick, compact = false, draggable
         <h3 className={clsx('font-semibold text-gray-800 leading-tight', compact ? 'text-sm' : 'text-base')}>
           {recipe.name}
         </h3>
-        {recipe.notionUrl && !compact && (
-          <a
-            href={recipe.notionUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            className="text-gray-400 hover:text-brand-500 shrink-0"
+        <div className="flex items-center gap-1.5 shrink-0">
+          {recipe.notionUrl && !compact && (
+            <a
+              href={recipe.notionUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="text-gray-400 hover:text-brand-500"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          )}
+          <button
+            onClick={handleFavClick}
+            className="text-sm leading-none"
+            aria-label={isFav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
           >
-            <ExternalLink className="w-3.5 h-3.5" />
-          </a>
-        )}
+            {isFav ? '❤️' : '🤍'}
+          </button>
+        </div>
       </div>
 
-      {/* Meta row */}
       <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-500">
         {totalTime > 0 && (
           <span className="flex items-center gap-1">
@@ -76,9 +96,11 @@ export default function RecipeCard({ recipe, onClick, compact = false, draggable
             Bébé
           </span>
         )}
+        {recipe.dejaFait && (
+          <span className="text-green-500 font-medium">✓ Réalisée</span>
+        )}
       </div>
 
-      {/* Tags */}
       {!compact && recipe.tags?.length > 0 && (
         <div className="flex flex-wrap gap-1 mt-2">
           {recipe.category && (
@@ -92,7 +114,6 @@ export default function RecipeCard({ recipe, onClick, compact = false, draggable
         </div>
       )}
 
-      {/* Source indicator */}
       {recipe.source === 'gemini' && (
         <div className="mt-2 flex items-center gap-1 text-xs text-purple-500">
           <span>✨ Suggestion IA</span>

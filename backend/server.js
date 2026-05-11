@@ -4,7 +4,7 @@ const cors = require('cors');
 
 const notionRoutes = require('./routes/notion');
 const geminiRoutes = require('./routes/gemini');
-const mealsRoutes = require('./routes/meals');
+const sessionRoutes = require('./routes/session');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -15,11 +15,11 @@ app.use(cors({
   allowedHeaders: ['Content-Type'],
 }));
 
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: '15mb' }));
 
 app.use('/api/notion', notionRoutes);
 app.use('/api/gemini', geminiRoutes);
-app.use('/api/meals', mealsRoutes);
+app.use('/api/session', sessionRoutes);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -32,7 +32,7 @@ app.use((err, _req, res, _next) => {
 
 if (require.main === module) {
   app.listen(PORT, () => {
-    console.log(`NotionCook backend running on http://localhost:${PORT}`);
+    console.log(`BatchCook backend running on http://localhost:${PORT}`);
   });
 }
 
