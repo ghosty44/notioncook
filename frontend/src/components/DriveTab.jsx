@@ -7,9 +7,9 @@ const CATEGORY_ORDER = [
   'Féculents & Céréales', 'Épicerie & Condiments', 'Boissons', 'Divers',
 ];
 
-function groupByCategory(driveItems) {
+function groupByCategory(items) {
   const g = {};
-  driveItems.forEach((item) => {
+  items.forEach((item) => {
     const cat = item.category || 'Divers';
     if (!g[cat]) g[cat] = [];
     g[cat].push(item);
@@ -20,30 +20,30 @@ function groupByCategory(driveItems) {
   return sorted;
 }
 
-function buildPrompt(driveItems, peopleCount) {
-  const grouped = groupByCategory(driveItems);
+function buildPrompt(items, peopleCount) {
+  const grouped = groupByCategory(items);
   const lines = [
     `Va sur https://www.intermarche.com/accueil et ajoute ces articles au panier Drive pour ${peopleCount} personne${peopleCount > 1 ? 's' : ''} :\n`,
   ];
-  for (const [category, items] of Object.entries(grouped)) {
+  for (const [category, catItems] of Object.entries(grouped)) {
     lines.push(`${category} :`);
-    items.forEach((item) => lines.push(`  - ${item.text}`));
+    catItems.forEach((item) => lines.push(`  - ${item.text}`));
     lines.push('');
   }
   return lines.join('\n');
 }
 
-export default function DriveTab() {
-  const { driveItems, removeDriveItem, clearDrive, peopleCount } = useBatchStore();
+export default function DriveTab({ cartItems, cartLoading, addToCart, removeFromCart, clearCart }) {
+  const { peopleCount } = useBatchStore();
   const [copied, setCopied] = useState(false);
   const [showPrompt, setShowPrompt] = useState(false);
   const [costEstimate, setCostEstimate] = useState(null);
   const [estimating, setEstimating] = useState(false);
 
-  const grouped = useMemo(() => groupByCategory(driveItems), [driveItems]);
+  const grouped = useMemo(() => groupByCategory(cartItems), [cartItems]);
 
   async function handleCopy() {
-    const prompt = buildPrompt(driveItems, peopleCount);
+    const prompt = buildPrompt(cartItems, peopleCount);
     try {
       await navigator.clipboard.writeText(prompt);
     } catch {
@@ -60,23 +60,32 @@ export default function DriveTab() {
 
   function handleClear() {
     if (window.confirm('Vider tout le panier ?')) {
-      clearDrive();
+      clearCart();
       setCostEstimate(null);
     }
   }
 
   async function handleEstimateCost() {
-    if (estimating || driveItems.length === 0) return;
+    if (estimating || cartItems.length === 0) return;
     setEstimating(true);
     setCostEstimate(null);
     try {
-      const estimate = await api.post('/gemini/estimate-cart-cost', { items: driveItems });
+      const estimate = await api.post('/gemini/estimate-cart-cost', { items: cartItems });
       setCostEstimate(estimate);
     } catch { /* silently fail */ }
     finally { setEstimating(false); }
   }
 
-  if (driveItems.length === 0) {
+  if (cartLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 gap-3">
+        <div className="w-10 h-10 border-[3px] border-orange-500 border-t-transparent rounded-full animate-spin" />
+        <p className="text-[#8e8e93] text-sm">Chargement du panier…</p>
+      </div>
+    );
+  }
+
+  if (cartItems.length === 0) {
     return (
       <div className="text-center py-20 text-[#8e8e93]">
         <div className="text-5xl mb-4">🛒</div>
@@ -86,7 +95,7 @@ export default function DriveTab() {
     );
   }
 
-  const prompt = buildPrompt(driveItems, peopleCount);
+  const prompt = buildPrompt(cartItems, peopleCount);
 
   return (
     <div className="space-y-4">
@@ -113,7 +122,7 @@ export default function DriveTab() {
         >
           {copied
             ? '✓ Copié !'
-            : `📋 Copier pour Claude Code (${driveItems.length} article${driveItems.length > 1 ? 's' : ''})`}
+            : `📋 Copier pour Claude Code (${cartItems.length} article${cartItems.length > 1 ? 's' : ''})`}
         </button>
 
         {copied && (
@@ -193,7 +202,7 @@ export default function DriveTab() {
                   <span className="text-xs text-[#8e8e93] shrink-0">{estimatedPrice.toFixed(2).replace('.', ',')} €</span>
                 )}
                 <button
-                  onClick={() => removeDriveItem(item.id)}
+                  onClick={() => removeFromCart(item.id)}
                   className="text-[#c7c7cc] hover:text-red-400 transition-colors text-lg w-7 h-7 flex items-center justify-center shrink-0"
                   title="Supprimer"
                 >

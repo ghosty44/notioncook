@@ -14,7 +14,6 @@ function getRecipeItems(recipe) {
   }));
 }
 
-// Handles integers, decimals (1,5 or 1.5) and fractions (1/2, 3/4)
 function scaleIngredients(ingredients, from, to) {
   if (from === to || !ingredients) return ingredients;
   const ratio = to / from;
@@ -31,8 +30,8 @@ function scaleIngredients(ingredients, from, to) {
   );
 }
 
-export default function RecipeModal({ recipe, onClose, showBatchNote = false, onUpdate = null }) {
-  const { addDriveItems, favorites, toggleFavorite, comments, setComment } = useBatchStore();
+export default function RecipeModal({ recipe, onClose, showBatchNote = false, onUpdate = null, addToCart = null }) {
+  const { favorites, toggleFavorite, comments, setComment } = useBatchStore();
   const [showDriveModal, setShowDriveModal] = useState(false);
   const [servings, setServings] = useState(recipe.servings || 1);
 
@@ -108,7 +107,6 @@ export default function RecipeModal({ recipe, onClose, showBatchNote = false, on
               </div>
             </div>
 
-            {/* Badges */}
             <div className="flex flex-wrap gap-2 mb-4">
               {recipe.category && (
                 <span className="bg-orange-100 text-orange-600 text-xs font-medium px-3 py-1 rounded-full">{recipe.category}</span>
@@ -131,7 +129,6 @@ export default function RecipeModal({ recipe, onClose, showBatchNote = false, on
               )}
             </div>
 
-            {/* Stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
               {recipe.prepTime > 0 && (
                 <div className="bg-[#f2f2f7] rounded-2xl p-3 text-center">
@@ -167,7 +164,6 @@ export default function RecipeModal({ recipe, onClose, showBatchNote = false, on
               )}
             </div>
 
-            {/* Batch note */}
             {showBatchNote && recipe.batchNote && (
               <div className="mb-5">
                 <div className="bg-green-50 border border-green-100 rounded-2xl p-4">
@@ -177,7 +173,6 @@ export default function RecipeModal({ recipe, onClose, showBatchNote = false, on
               </div>
             )}
 
-            {/* Ingredients */}
             {recipe.ingredients && (
               <div className="mb-5">
                 <h3 className="text-[15px] font-semibold text-[#1c1c1e] mb-2">
@@ -199,7 +194,6 @@ export default function RecipeModal({ recipe, onClose, showBatchNote = false, on
               </div>
             )}
 
-            {/* Instructions */}
             {recipe.instructions && (
               <div className="mb-5">
                 <h3 className="text-[15px] font-semibold text-[#1c1c1e] mb-3">Instructions</h3>
@@ -214,7 +208,6 @@ export default function RecipeModal({ recipe, onClose, showBatchNote = false, on
               </div>
             )}
 
-            {/* Baby adaptation */}
             {recipe.babyAdaptation && (
               <div className="mb-5">
                 <h3 className="text-[15px] font-semibold text-[#1c1c1e] mb-2">
@@ -229,7 +222,6 @@ export default function RecipeModal({ recipe, onClose, showBatchNote = false, on
               </div>
             )}
 
-            {/* Comment */}
             <div className="mb-4">
               <h3 className="text-[15px] font-semibold text-[#1c1c1e] mb-2">📝 Commentaire</h3>
               <textarea
@@ -241,7 +233,6 @@ export default function RecipeModal({ recipe, onClose, showBatchNote = false, on
               />
             </div>
 
-            {/* Drive button */}
             {recipe.ingredients && (
               <button
                 onClick={() => setShowDriveModal(true)}
@@ -258,7 +249,7 @@ export default function RecipeModal({ recipe, onClose, showBatchNote = false, on
         <DriveReviewModal
           items={getRecipeItems(recipe)}
           sourceName={recipe.name}
-          onConfirm={(items) => { addDriveItems(items); setShowDriveModal(false); }}
+          onConfirm={(items) => { if (addToCart) addToCart(items); setShowDriveModal(false); }}
           onClose={() => setShowDriveModal(false)}
         />
       )}

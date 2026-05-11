@@ -51,7 +51,7 @@ function resizeAndEncode(file) {
   });
 }
 
-export default function AISuggestions({ onSaveToNotion }) {
+export default function AISuggestions({ onSaveToNotion, addToCart }) {
   const [preferences, setPreferences] = useState('');
   const [selectedOptions, setSelectedOptions] = useState([]);
   const [count, setCount] = useState(2);
@@ -128,7 +128,6 @@ export default function AISuggestions({ onSaveToNotion }) {
 
   return (
     <div>
-      {/* Text-based generation card */}
       <div className="bg-white rounded-2xl shadow-sm border border-black/5 p-4 mb-4">
         <p className="text-xs font-semibold text-[#8e8e93] uppercase tracking-wider mb-2">Options</p>
         <div className="flex flex-wrap gap-2 mb-4">
@@ -198,7 +197,6 @@ export default function AISuggestions({ onSaveToNotion }) {
         </div>
       </div>
 
-      {/* Photo / Link card */}
       <div className="bg-white rounded-2xl shadow-sm border border-black/5 p-4 mb-5">
         <p className="text-xs font-semibold text-[#8e8e93] uppercase tracking-wider mb-3">Depuis une image ou un lien</p>
 
@@ -341,7 +339,7 @@ export default function AISuggestions({ onSaveToNotion }) {
         </div>
       )}
 
-      {selected && <RecipeModal recipe={selected} onClose={() => setSelected(null)} />}
+      {selected && <RecipeModal recipe={selected} onClose={() => setSelected(null)} addToCart={addToCart} />}
     </div>
   );
 }

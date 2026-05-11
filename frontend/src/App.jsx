@@ -6,6 +6,7 @@ import CookingTimeline from './components/CookingTimeline';
 import AISuggestions from './components/AISuggestions';
 import DriveTab from './components/DriveTab';
 import { useRecipes } from './hooks/useRecipes';
+import { useCart } from './hooks/useCart';
 import { useBatchStore } from './store/batchStore';
 
 const TABS = [
@@ -13,7 +14,7 @@ const TABS = [
   { id: 'planner', label: 'Plan', icon: '🗓️' },
   { id: 'timeline', label: 'Timeline', icon: '⏱' },
   { id: 'ai', label: 'IA', icon: '✨' },
-  { id: 'drive', label: 'Drive', icon: '🛗️' },
+  { id: 'drive', label: 'Drive', icon: '📗️' },
 ];
 
 const PAGE_TITLES = {
@@ -27,6 +28,7 @@ const PAGE_TITLES = {
 export default function App() {
   const [activeTab, setActiveTab] = useState('planner');
   const { recipes, loading, error, refetch, saveToNotion, deleteRecipeById, updateRecipe } = useRecipes();
+  const { cartItems, cartLoading, addItems, removeItem, clearItems } = useCart();
   const sessionCount = useBatchStore((s) => s.mealPlan?.days?.length ?? s.entries.length);
 
   return (
@@ -40,11 +42,11 @@ export default function App() {
       </header>
 
       <main key={activeTab} className="max-w-2xl mx-auto px-5 py-5 pb-28 animate-page-enter">
-        {activeTab === 'library' && <RecipeLibrary recipes={recipes} loading={loading} error={error} onRefetch={refetch} onDeleteRecipe={deleteRecipeById} updateRecipe={updateRecipe} />}
-        {activeTab === 'planner' && <BatchPlanner recipes={recipes} updateRecipe={updateRecipe} />}
+        {activeTab === 'library' && <RecipeLibrary recipes={recipes} loading={loading} error={error} onRefetch={refetch} onDeleteRecipe={deleteRecipeById} updateRecipe={updateRecipe} addToCart={addItems} />}
+        {activeTab === 'planner' && <BatchPlanner recipes={recipes} updateRecipe={updateRecipe} addToCart={addItems} />}
         {activeTab === 'timeline' && <CookingTimeline />}
-        {activeTab === 'ai' && <AISuggestions onSaveToNotion={saveToNotion} />}
-        {activeTab === 'drive' && <DriveTab />}
+        {activeTab === 'ai' && <AISuggestions onSaveToNotion={saveToNotion} addToCart={addItems} />}
+        {activeTab === 'drive' && <DriveTab cartItems={cartItems} cartLoading={cartLoading} addToCart={addItems} removeFromCart={removeItem} clearCart={clearItems} />}
       </main>
 
       <Navigation tabs={TABS} activeTab={activeTab} onTabChange={setActiveTab} sessionCount={sessionCount} />

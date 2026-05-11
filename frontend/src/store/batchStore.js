@@ -16,9 +16,6 @@ export const useBatchStore = create(
       entries: [],
       peopleCount: 4,
 
-      // Drive cart
-      driveItems: [],
-
       // Favorites (array of recipe id or name)
       favorites: [],
 
@@ -68,20 +65,6 @@ export const useBatchStore = create(
         set((state) => ({ entries: state.entries.filter((e) => e.recipe.id !== recipeId) })),
       setPeopleCount: (n) => set({ peopleCount: Math.max(1, Math.min(20, n)) }),
       clearSession: () => set({ entries: [] }),
-
-      addDriveItems: (items) =>
-        set((s) => ({
-          driveItems: [
-            ...s.driveItems,
-            ...items.map((i) => ({
-              ...i,
-              id: `drive-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-            })),
-          ],
-        })),
-      removeDriveItem: (id) =>
-        set((s) => ({ driveItems: s.driveItems.filter((i) => i.id !== id) })),
-      clearDrive: () => set({ driveItems: [] }),
 
       toggleFavorite: (recipe) =>
         set((s) => {
