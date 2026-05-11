@@ -16,6 +16,13 @@ const PREF_CHIPS = [
   { id: 'simple', label: '👌 Préparation simple' },
 ];
 
+const LOADING_STEPS = [
+  { icon: '🧠', label: 'Analyse de vos préférences…' },
+  { icon: '🍽️', label: 'Création des menus de la semaine…' },
+  { icon: '♻️', label: 'Optimisation des sessions batch…' },
+  { icon: '🛒', label: 'Génération de la liste de courses…' },
+];
+
 function getDayCount(start, end) {
   if (!start || !end) return 0;
   const s = new Date(start + 'T00:00:00');
@@ -114,6 +121,7 @@ export default function BatchPlanner({ recipes = [], updateRecipe }) {
   const [showDriveModal, setShowDriveModal] = useState(false);
   const [selectedMeal, setSelectedMeal] = useState(null);
   const [swapTarget, setSwapTarget] = useState(null);
+  const [loadingStep, setLoadingStep] = useState(0);
 
   useEffect(() => {
     setSavedPlan(null);
@@ -128,6 +136,14 @@ export default function BatchPlanner({ recipes = [], updateRecipe }) {
       .catch(() => setHistoryPlans([]))
       .finally(() => setHistoryLoading(false));
   }, [mealPlan]);
+
+  useEffect(() => {
+    if (!planLoading) { setLoadingStep(0); return; }
+    const interval = setInterval(() => {
+      setLoadingStep((s) => Math.min(s + 1, LOADING_STEPS.length - 1));
+    }, 2800);
+    return () => clearInterval(interval);
+  }, [planLoading]);
 
   const dayCount = getDayCount(startDate, endDate);
   const canGenerate = startDate && endDate && dayCount >= 1 && dayCount <= 14;
@@ -266,14 +282,56 @@ export default function BatchPlanner({ recipes = [], updateRecipe }) {
 
   // ── Loading
   if (planLoading) {
+    const progress = Math.round(((loadingStep + 1) / LOADING_STEPS.length) * 80);
     return (
-      <div className="text-center py-28">
-        <div className="text-5xl mb-5 animate-pulse">✨</div>
-        <p className="text-[17px] font-semibold text-[#1c1c1e] mb-2">Gemini optimise votre semaine…</p>
-        <p className="text-sm text-[#8e8e93] leading-relaxed">
-          Analyse des batchs possibles,<br />
-          variété des repas, liste de courses…
-        </p>
+      <div className="py-16 px-1">
+        <div className="text-center mb-10">
+          <div className="text-5xl mb-4 animate-bounce">{LOADING_STEPS[loadingStep].icon}</div>
+          <p className="text-[17px] font-bold text-[#1c1c1e] mb-1">Gemini optimise votre semaine…</p>
+          <p className="text-sm text-[#8e8e93] transition-all duration-500">{LOADING_STEPS[loadingStep].label}</p>
+        </div>
+
+        {/* Progress bar */}
+        <div className="bg-[#e5e5ea] rounded-full h-1.5 mb-8 overflow-hidden">
+          <div
+            className="bg-orange-500 h-full rounded-full transition-all duration-700 ease-out"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+
+        {/* Steps */}
+        <div className="space-y-4">
+          {LOADING_STEPS.map((step, i) => (
+            <div
+              key={i}
+              className={`flex items-center gap-3.5 transition-all duration-500 ${
+                i > loadingStep ? 'opacity-25' : 'opacity-100'
+              }`}
+            >
+              <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-all duration-300 ${
+                i < loadingStep
+                  ? 'bg-green-500 scale-100'
+                  : i === loadingStep
+                  ? 'bg-orange-500 scale-110'
+                  : 'bg-[#e5e5ea] scale-100'
+              }`}>
+                {i < loadingStep
+                  ? <span className="text-white text-xs font-bold">✓</span>
+                  : i === loadingStep
+                  ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  : null}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-base">{step.icon}</span>
+                <span className={`text-[15px] font-medium transition-colors duration-300 ${
+                  i === loadingStep ? 'text-[#1c1c1e]' : i < loadingStep ? 'text-[#8e8e93]' : 'text-[#c7c7cc]'
+                }`}>
+                  {step.label}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
