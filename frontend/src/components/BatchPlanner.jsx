@@ -97,12 +97,11 @@ function MealRow({ meal, icon, label, regenerating, onRegenerate, onClick, onSwa
   );
 }
 
-export default function BatchPlanner({ recipes = [], updateRecipe }) {
+export default function BatchPlanner({ recipes = [], updateRecipe, addToCart }) {
   const {
     startDate, endDate, mealPlan, planLoading, planError, planPreferences,
     peopleCount, setPeopleCount, setDateRange, setMealPlan, setPlanLoading,
     setPlanError, setPlanPreferences, clearMealPlan, updateMeal, updateBatchSessionDate,
-    addDriveItems,
   } = useBatchStore();
 
   const [activeChips, setActiveChips] = useState([]);
@@ -291,7 +290,6 @@ export default function BatchPlanner({ recipes = [], updateRecipe }) {
           <p className="text-sm text-[#8e8e93] transition-all duration-500">{LOADING_STEPS[loadingStep].label}</p>
         </div>
 
-        {/* Progress bar */}
         <div className="bg-[#e5e5ea] rounded-full h-1.5 mb-8 overflow-hidden">
           <div
             className="bg-orange-500 h-full rounded-full transition-all duration-700 ease-out"
@@ -299,7 +297,6 @@ export default function BatchPlanner({ recipes = [], updateRecipe }) {
           />
         </div>
 
-        {/* Steps */}
         <div className="space-y-4">
           {LOADING_STEPS.map((step, i) => (
             <div
@@ -343,7 +340,6 @@ export default function BatchPlanner({ recipes = [], updateRecipe }) {
     return (
       <div className="space-y-4">
 
-        {/* Back button */}
         <button
           onClick={clearMealPlan}
           className="flex items-center gap-1.5 text-sm text-[#8e8e93] font-medium active:opacity-60 transition-opacity"
@@ -351,7 +347,6 @@ export default function BatchPlanner({ recipes = [], updateRecipe }) {
           ← Nouveau plan
         </button>
 
-        {/* Summary */}
         <div className="bg-white rounded-2xl shadow-sm border border-black/5 p-4 animate-page-enter">
           <p className="text-[15px] font-semibold text-[#1c1c1e]">
             {mealPlan.days?.length ?? 0} jours · {(mealPlan.days?.length ?? 0) * 2} repas
@@ -374,7 +369,6 @@ export default function BatchPlanner({ recipes = [], updateRecipe }) {
           )}
         </div>
 
-        {/* Batch sessions */}
         {mealPlan.batchSessions?.length > 0 && (
           <div
             className="bg-orange-50 rounded-2xl border border-orange-100 p-4 animate-page-enter"
@@ -434,7 +428,6 @@ export default function BatchPlanner({ recipes = [], updateRecipe }) {
           </div>
         )}
 
-        {/* Days */}
         {mealPlan.days?.map((day, i) => (
           <div
             key={i}
@@ -466,7 +459,6 @@ export default function BatchPlanner({ recipes = [], updateRecipe }) {
           </div>
         ))}
 
-        {/* Save + Drive */}
         <div className="pt-2 space-y-2">
           {savedPlan ? (
             <div className="space-y-2">
@@ -525,7 +517,7 @@ export default function BatchPlanner({ recipes = [], updateRecipe }) {
           <DriveReviewModal
             items={driveItems}
             sourceName={`Plan ${startDate ? 'du ' + startDate : ''}`}
-            onConfirm={(items) => { addDriveItems(items); setShowDriveModal(false); }}
+            onConfirm={(items) => { if (addToCart) addToCart(items); setShowDriveModal(false); }}
             onClose={() => setShowDriveModal(false)}
           />
         )}
@@ -535,6 +527,7 @@ export default function BatchPlanner({ recipes = [], updateRecipe }) {
             recipe={selectedMeal}
             onClose={() => setSelectedMeal(null)}
             onUpdate={selectedMeal.notionUrl && updateRecipe ? (fields) => updateRecipe(selectedMeal.id, fields) : null}
+            addToCart={addToCart}
           />
         )}
 
@@ -631,7 +624,6 @@ export default function BatchPlanner({ recipes = [], updateRecipe }) {
         />
       </div>
 
-      {/* History */}
       {(historyLoading || historyPlans.length > 0) && (
         <div className="bg-white rounded-2xl shadow-sm border border-black/5 p-4">
           <p className="text-[11px] font-semibold text-[#8e8e93] uppercase tracking-wider mb-3">📋 Plans précédents</p>

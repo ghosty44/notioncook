@@ -13,7 +13,7 @@ function getRecipeItems(recipe) {
   }));
 }
 
-export default function RecipeLibrary({ recipes, loading, error, onRefetch, onDeleteRecipe, updateRecipe }) {
+export default function RecipeLibrary({ recipes, loading, error, onRefetch, onDeleteRecipe, updateRecipe, addToCart }) {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('Toutes');
   const [selected, setSelected] = useState(null);
@@ -21,7 +21,7 @@ export default function RecipeLibrary({ recipes, loading, error, onRefetch, onDe
   const [deleteMode, setDeleteMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [deleting, setDeleting] = useState(false);
-  const { addDriveItems, favorites, toggleFavorite } = useBatchStore();
+  const { favorites, toggleFavorite } = useBatchStore();
 
   const filtered = recipes.filter((r) => {
     if (category !== 'Toutes' && r.category !== category) return false;
@@ -181,7 +181,6 @@ export default function RecipeLibrary({ recipes, loading, error, onRefetch, onDe
         </div>
       )}
 
-      {/* Multi-select delete banner */}
       {deleteMode && (
         <div className="fixed bottom-20 left-0 right-0 z-30 px-5">
           <div className="max-w-2xl mx-auto bg-[#1c1c1e] rounded-2xl px-4 py-3 flex items-center justify-between shadow-2xl">
@@ -210,6 +209,7 @@ export default function RecipeLibrary({ recipes, loading, error, onRefetch, onDe
           recipe={selected}
           onClose={() => setSelected(null)}
           onUpdate={selected.notionUrl && updateRecipe ? (fields) => updateRecipe(selected.id, fields) : null}
+          addToCart={addToCart}
         />
       )}
 
@@ -217,7 +217,7 @@ export default function RecipeLibrary({ recipes, loading, error, onRefetch, onDe
         <DriveReviewModal
           items={getRecipeItems(driveRecipe)}
           sourceName={driveRecipe.name}
-          onConfirm={(items) => { addDriveItems(items); setDriveRecipe(null); }}
+          onConfirm={(items) => { if (addToCart) addToCart(items); setDriveRecipe(null); }}
           onClose={() => setDriveRecipe(null)}
         />
       )}
