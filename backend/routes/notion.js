@@ -4,6 +4,7 @@ const {
   getAllRecipes, getRecipeById, createRecipe, updateRecipe, searchRecipes,
   saveMealPlan, getMealPlans, getMealPlanById,
   deleteRecipe, deleteMealPlan,
+  getCartItems, addCartItem, removeCartItem, clearCart,
 } = require('../services/notionService');
 
 router.get('/recipes', async (_req, res, next) => {
@@ -74,6 +75,27 @@ router.get('/meal-plans/:id', async (req, res, next) => {
 
 router.delete('/meal-plans/:id', async (req, res, next) => {
   try { await deleteMealPlan(req.params.id); res.json({ ok: true }); } catch (err) { next(err); }
+});
+
+router.get('/cart', async (_req, res, next) => {
+  try { res.json(await getCartItems()); } catch (err) { next(err); }
+});
+
+router.post('/cart', async (req, res, next) => {
+  try {
+    const { items } = req.body;
+    if (!items?.length) return res.status(400).json({ error: 'items requis' });
+    const created = await Promise.all(items.map(addCartItem));
+    res.json(created);
+  } catch (err) { next(err); }
+});
+
+router.delete('/cart/:id', async (req, res, next) => {
+  try { await removeCartItem(req.params.id); res.json({ ok: true }); } catch (err) { next(err); }
+});
+
+router.delete('/cart', async (_req, res, next) => {
+  try { await clearCart(); res.json({ ok: true }); } catch (err) { next(err); }
 });
 
 module.exports = router;

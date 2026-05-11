@@ -336,8 +336,45 @@ async function saveMealPlan({ plan, startDate, endDate, peopleCount, preferences
   return { id: planPageId, url: planPageUrl, name: planName };
 }
 
+function pageToCartItem(page) {
+  const props = page.properties;
+  return {
+    id: page.id,
+    text: richTextToString(props.Nom?.title),
+    category: props.Catégorie?.select?.name || 'Divers',
+  };
+}
+
+async function getCartItems() {
+  const response = await notion.databases.query({
+    database_id: process.env.NOTION_CART_DATABASE_ID,
+    sorts: [{ timestamp: 'created_time', direction: 'ascending' }],
+  });
+  return response.results.map(pageToCartItem);
+}
+
+async function addCartItem(item) {
+  const props = { Nom: { title: [{ text: { content: item.text } }] } };
+  if (item.category) props.Catégorie = { select: { name: item.category } };
+  const page = await notion.pages.create({
+    parent: { database_id: process.env.NOTION_CART_DATABASE_ID },
+    properties: props,
+  });
+  return pageToCartItem(page);
+}
+
+async function removeCartItem(id) {
+  await notion.pages.update({ page_id: id, archived: true });
+}
+
+async function clearCart() {
+  const items = await getCartItems();
+  await Promise.all(items.map((i) => removeCartItem(i.id)));
+}
+
 module.exports = {
   getAllRecipes, getRecipeById, createRecipe, updateRecipe, searchRecipes,
   saveMealPlan, getMealPlans, getMealPlanById,
   deleteRecipe, deleteMealPlan,
+  getCartItems, addCartItem, removeCartItem, clearCart,
 };
