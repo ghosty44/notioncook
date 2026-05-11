@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useBatchStore } from '../store/batchStore';
 import api from '../utils/api';
 import DriveReviewModal from './DriveReviewModal';
@@ -23,6 +23,37 @@ const LOADING_STEPS = [
   { icon: '🛒', label: 'Génération de la liste de courses…' },
 ];
 
+const TODAY = new Date().toISOString().split('T')[0];
+
+function getMondayOfWeek(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  const day = d.getDay();
+  d.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
+  return d.toISOString().split('T')[0];
+}
+
+function getWeekDays(weekStart) {
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(weekStart + 'T00:00:00');
+    d.setDate(d.getDate() + i);
+    return d.toISOString().split('T')[0];
+  });
+}
+
+function addWeeks(weekStart, n) {
+  const d = new Date(weekStart + 'T00:00:00');
+  d.setDate(d.getDate() + n * 7);
+  return d.toISOString().split('T')[0];
+}
+
+function formatWeekLabel(weekStart) {
+  const days = getWeekDays(weekStart);
+  const first = new Date(days[0] + 'T00:00:00');
+  const last = new Date(days[6] + 'T00:00:00');
+  const opts = { day: 'numeric', month: 'long' };
+  return `${first.toLocaleDateString('fr-FR', opts)} — ${last.toLocaleDateString('fr-FR', opts)}`;
+}
+
 function getDayCount(start, end) {
   if (!start || !end) return 0;
   const s = new Date(start + 'T00:00:00');
@@ -46,7 +77,10 @@ function MealRow({ meal, icon, label, regenerating, onRegenerate, onClick, onSwa
         <div className="flex items-center gap-2">
           <span className="text-sm">{icon}</span>
           <span className="text-[11px] font-semibold text-[#8e8e93] uppercase tracking-wider">{label}</span>
-          {meal.batchNote && (
+          {meal.fromCalendar && (
+            <span className="text-[10px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full font-medium">📌 planifié</span>
+          )}
+          {meal.batchNote && !meal.fromCalendar && (
             <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium">♻️ batch</span>
           )}
         </div>
@@ -87,7 +121,7 @@ function MealRow({ meal, icon, label, regenerating, onRegenerate, onClick, onSwa
             )}
           </div>
         )}
-        {meal.batchNote && (
+        {meal.batchNote && !meal.fromCalendar && (
           <div className="bg-green-50 border border-green-100 rounded-xl px-3 py-2">
             <p className="text-xs text-green-700 leading-relaxed">♻️ {meal.batchNote}</p>
           </div>
@@ -102,8 +136,12 @@ export default function BatchPlanner({ recipes = [], updateRecipe, addToCart }) 
     startDate, endDate, mealPlan, planLoading, planError, planPreferences,
     peopleCount, setPeopleCount, setDateRange, setMealPlan, setPlanLoading,
     setPlanError, setPlanPreferences, clearMealPlan, updateMeal, updateBatchSessionDate,
+    calendarMeals, setCalendarMeal, clearCalendarMeal,
   } = useBatchStore();
 
+  const [view, setView] = useState('calendar');
+  const [calendarWeekStart, setCalendarWeekStart] = useState(() => getMondayOfWeek(TODAY));
+  const [calendarPickerTarget, setCalendarPickerTarget] = useState(null);
   const [activeChips, setActiveChips] = useState([]);
   const [customPrompt, setCustomPrompt] = useState('');
   const [saving, setSaving] = useState(false);
@@ -121,6 +159,17 @@ export default function BatchPlanner({ recipes = [], updateRecipe, addToCart }) 
   const [selectedMeal, setSelectedMeal] = useState(null);
   const [swapTarget, setSwapTarget] = useState(null);
   const [loadingStep, setLoadingStep] = useState(0);
+
+  const existingMealsInRange = useMemo(() => {
+    if (!startDate || !endDate) return [];
+    return Object.entries(calendarMeals)
+      .filter(([date]) => date >= startDate && date <= endDate)
+      .flatMap(([date, slots]) => [
+        slots?.lunch ? { date, mealType: 'lunch', name: slots.lunch.name } : null,
+        slots?.dinner ? { date, mealType: 'dinner', name: slots.dinner.name } : null,
+      ])
+      .filter(Boolean);
+  }, [calendarMeals, startDate, endDate]);
 
   useEffect(() => {
     setSavedPlan(null);
@@ -197,8 +246,24 @@ export default function BatchPlanner({ recipes = [], updateRecipe, addToCart }) 
     setPlanLoading(true);
     setPlanError(null);
     try {
-      const plan = await api.post('/gemini/meal-plan', { startDate, endDate, peopleCount, preferences: prefs });
-      setMealPlan(plan);
+      const rawPlan = await api.post('/gemini/meal-plan', {
+        startDate, endDate, peopleCount, preferences: prefs,
+        existingMeals: existingMealsInRange,
+      });
+      // Merge calendar meals into generated plan
+      const merged = {
+        ...rawPlan,
+        days: rawPlan.days.map((day) => {
+          const cal = calendarMeals[day.date];
+          return {
+            ...day,
+            lunch: cal?.lunch ? { ...cal.lunch, fromCalendar: true } : day.lunch,
+            dinner: cal?.dinner ? { ...cal.dinner, fromCalendar: true } : day.dinner,
+          };
+        }),
+      };
+      setMealPlan(merged);
+      setView('generate');
     } catch (err) {
       setPlanError(err.message || 'Erreur lors de la génération');
     }
@@ -258,6 +323,7 @@ export default function BatchPlanner({ recipes = [], updateRecipe, addToCart }) 
       const fullPlan = await api.get(`/notion/meal-plans/${plan.id}`);
       setMealPlan(fullPlan);
       if (plan.startDate) setDateRange(plan.startDate, plan.endDate);
+      setView('generate');
     } catch { /* silently fail */ }
     finally { setLoadingPlanId(null); }
   }
@@ -279,6 +345,24 @@ export default function BatchPlanner({ recipes = [], updateRecipe, addToCart }) 
     category: i.category || 'Divers',
   })) ?? [];
 
+  // ── View toggle (shown in all non-loading states)
+  const viewToggle = (
+    <div className="flex bg-[#f2f2f7] rounded-2xl p-1 mb-4">
+      <button
+        onClick={() => setView('calendar')}
+        className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-all ${
+          view === 'calendar' ? 'bg-white shadow-sm text-[#1c1c1e]' : 'text-[#8e8e93]'
+        }`}
+      >🗓️ Calendrier</button>
+      <button
+        onClick={() => setView('generate')}
+        className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-all ${
+          view === 'generate' ? 'bg-white shadow-sm text-[#1c1c1e]' : 'text-[#8e8e93]'
+        }`}
+      >✨ Générer</button>
+    </div>
+  );
+
   // ── Loading
   if (planLoading) {
     const progress = Math.round(((loadingStep + 1) / LOADING_STEPS.length) * 80);
@@ -289,14 +373,12 @@ export default function BatchPlanner({ recipes = [], updateRecipe, addToCart }) 
           <p className="text-[17px] font-bold text-[#1c1c1e] mb-1">Gemini optimise votre semaine…</p>
           <p className="text-sm text-[#8e8e93] transition-all duration-500">{LOADING_STEPS[loadingStep].label}</p>
         </div>
-
         <div className="bg-[#e5e5ea] rounded-full h-1.5 mb-8 overflow-hidden">
           <div
             className="bg-orange-500 h-full rounded-full transition-all duration-700 ease-out"
             style={{ width: `${progress}%` }}
           />
         </div>
-
         <div className="space-y-4">
           {LOADING_STEPS.map((step, i) => (
             <div
@@ -306,10 +388,8 @@ export default function BatchPlanner({ recipes = [], updateRecipe, addToCart }) 
               }`}
             >
               <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-all duration-300 ${
-                i < loadingStep
-                  ? 'bg-green-500 scale-100'
-                  : i === loadingStep
-                  ? 'bg-orange-500 scale-110'
+                i < loadingStep ? 'bg-green-500 scale-100'
+                  : i === loadingStep ? 'bg-orange-500 scale-110'
                   : 'bg-[#e5e5ea] scale-100'
               }`}>
                 {i < loadingStep
@@ -322,9 +402,7 @@ export default function BatchPlanner({ recipes = [], updateRecipe, addToCart }) 
                 <span className="text-base">{step.icon}</span>
                 <span className={`text-[15px] font-medium transition-colors duration-300 ${
                   i === loadingStep ? 'text-[#1c1c1e]' : i < loadingStep ? 'text-[#8e8e93]' : 'text-[#c7c7cc]'
-                }`}>
-                  {step.label}
-                </span>
+                }`}>{step.label}</span>
               </div>
             </div>
           ))}
@@ -333,12 +411,124 @@ export default function BatchPlanner({ recipes = [], updateRecipe, addToCart }) 
     );
   }
 
-  // ── Plan display
+  // ── Calendar view
+  if (view === 'calendar') {
+    const weekDays = getWeekDays(calendarWeekStart);
+    const weekLabel = formatWeekLabel(calendarWeekStart);
+    return (
+      <div className="space-y-4">
+        {viewToggle}
+
+        {/* Week navigation */}
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => setCalendarWeekStart(addWeeks(calendarWeekStart, -1))}
+            className="w-9 h-9 flex items-center justify-center rounded-full bg-white shadow-sm border border-black/5 text-[#3a3a3c] text-lg"
+          >‹</button>
+          <p className="text-[13px] font-semibold text-[#1c1c1e] text-center leading-tight px-2">{weekLabel}</p>
+          <button
+            onClick={() => setCalendarWeekStart(addWeeks(calendarWeekStart, 1))}
+            className="w-9 h-9 flex items-center justify-center rounded-full bg-white shadow-sm border border-black/5 text-[#3a3a3c] text-lg"
+          >›</button>
+        </div>
+
+        {/* Days */}
+        {weekDays.map((date) => {
+          const isToday = date === TODAY;
+          const dayMeals = calendarMeals[date] || {};
+          const raw = new Date(date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+          const dayLabel = raw.charAt(0).toUpperCase() + raw.slice(1);
+          return (
+            <div
+              key={date}
+              className={`bg-white rounded-2xl shadow-sm border overflow-hidden ${
+                isToday ? 'border-orange-300 ring-1 ring-orange-100' : 'border-black/5'
+              }`}
+            >
+              <div className={`px-4 py-2.5 border-b border-[#f2f2f7] ${
+                isToday ? 'bg-orange-50' : 'bg-[#f9f9f9]'
+              }`}>
+                <p className={`text-[13px] font-bold ${
+                  isToday ? 'text-orange-600' : 'text-[#1c1c1e]'
+                }`}>
+                  {dayLabel}{isToday ? ' · Aujourd\'hui' : ''}
+                </p>
+              </div>
+
+              {/* Lunch slot */}
+              <div className="px-4 py-3 flex items-center gap-3">
+                <span className="text-sm shrink-0">🌞</span>
+                <span className="text-[11px] font-semibold text-[#8e8e93] uppercase tracking-wider w-10 shrink-0">Midi</span>
+                {dayMeals.lunch ? (
+                  <div className="flex-1 flex items-center gap-2 min-w-0">
+                    <button
+                      onClick={() => setCalendarPickerTarget({ date, mealType: 'lunch' })}
+                      className="flex-1 text-left text-sm font-medium text-[#1c1c1e] truncate active:opacity-60"
+                    >{dayMeals.lunch.name}</button>
+                    <button
+                      onClick={() => clearCalendarMeal(date, 'lunch')}
+                      className="shrink-0 text-[#c7c7cc] hover:text-red-400 transition-colors text-lg w-7 h-7 flex items-center justify-center"
+                    >×</button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setCalendarPickerTarget({ date, mealType: 'lunch' })}
+                    className="flex-1 text-left text-sm text-orange-500 font-medium"
+                  >+ Ajouter</button>
+                )}
+              </div>
+
+              <div className="border-t border-[#f2f2f7]" />
+
+              {/* Dinner slot */}
+              <div className="px-4 py-3 flex items-center gap-3">
+                <span className="text-sm shrink-0">🌙</span>
+                <span className="text-[11px] font-semibold text-[#8e8e93] uppercase tracking-wider w-10 shrink-0">Soir</span>
+                {dayMeals.dinner ? (
+                  <div className="flex-1 flex items-center gap-2 min-w-0">
+                    <button
+                      onClick={() => setCalendarPickerTarget({ date, mealType: 'dinner' })}
+                      className="flex-1 text-left text-sm font-medium text-[#1c1c1e] truncate active:opacity-60"
+                    >{dayMeals.dinner.name}</button>
+                    <button
+                      onClick={() => clearCalendarMeal(date, 'dinner')}
+                      className="shrink-0 text-[#c7c7cc] hover:text-red-400 transition-colors text-lg w-7 h-7 flex items-center justify-center"
+                    >×</button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setCalendarPickerTarget({ date, mealType: 'dinner' })}
+                    className="flex-1 text-left text-sm text-orange-500 font-medium"
+                  >+ Ajouter</button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+
+        {calendarPickerTarget && (
+          <RecipePickerModal
+            recipes={recipes}
+            onSelect={(recipe) => {
+              setCalendarMeal(calendarPickerTarget.date, calendarPickerTarget.mealType, recipe);
+              setCalendarPickerTarget(null);
+            }}
+            onClose={() => setCalendarPickerTarget(null)}
+            date={calendarPickerTarget.date}
+            slot={calendarPickerTarget.mealType}
+          />
+        )}
+      </div>
+    );
+  }
+
+  // ── Plan display (generate view with active plan)
   if (mealPlan) {
     const totalBatchTime = mealPlan.batchSessions?.reduce((a, s) => a + (s.totalMinutes || 0), 0) ?? 0;
     const savings = mealPlan.savingsEstimate;
     return (
       <div className="space-y-4">
+        {viewToggle}
 
         <button
           onClick={clearMealPlan}
@@ -370,10 +560,7 @@ export default function BatchPlanner({ recipes = [], updateRecipe, addToCart }) 
         </div>
 
         {mealPlan.batchSessions?.length > 0 && (
-          <div
-            className="bg-orange-50 rounded-2xl border border-orange-100 p-4 animate-page-enter"
-            style={{ animationDelay: '40ms' }}
-          >
+          <div className="bg-orange-50 rounded-2xl border border-orange-100 p-4 animate-page-enter" style={{ animationDelay: '40ms' }}>
             <p className="text-[11px] font-semibold text-orange-600 uppercase tracking-wider mb-3">
               🔄 Sessions de préparation batch
             </p>
@@ -442,9 +629,9 @@ export default function BatchPlanner({ recipes = [], updateRecipe, addToCart }) 
               icon="🌞"
               label="Midi"
               regenerating={!!regenerating[`${day.date}-lunch`]}
-              onRegenerate={() => handleRegenerate(day.date, 'lunch')}
+              onRegenerate={day.lunch?.fromCalendar ? null : () => handleRegenerate(day.date, 'lunch')}
               onClick={() => openRecipeModal(day.lunch)}
-              onSwap={() => setSwapTarget({ date: day.date, mealType: 'lunch' })}
+              onSwap={day.lunch?.fromCalendar ? null : () => setSwapTarget({ date: day.date, mealType: 'lunch' })}
             />
             <div className="border-t border-[#f2f2f7]" />
             <MealRow
@@ -452,9 +639,9 @@ export default function BatchPlanner({ recipes = [], updateRecipe, addToCart }) 
               icon="🌙"
               label="Soir"
               regenerating={!!regenerating[`${day.date}-dinner`]}
-              onRegenerate={() => handleRegenerate(day.date, 'dinner')}
+              onRegenerate={day.dinner?.fromCalendar ? null : () => handleRegenerate(day.date, 'dinner')}
               onClick={() => openRecipeModal(day.dinner)}
-              onSwap={() => setSwapTarget({ date: day.date, mealType: 'dinner' })}
+              onSwap={day.dinner?.fromCalendar ? null : () => setSwapTarget({ date: day.date, mealType: 'dinner' })}
             />
           </div>
         ))}
@@ -495,14 +682,10 @@ export default function BatchPlanner({ recipes = [], updateRecipe, addToCart }) 
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   {savingStep === 'recipes' ? 'Génération des recettes…' : 'Enregistrement dans Notion…'}
                 </>
-              ) : (
-                '💾 Valider et enregistrer dans Notion'
-              )}
+              ) : '💾 Valider et enregistrer dans Notion'}
             </button>
           )}
-          {saveError && (
-            <p className="text-xs text-red-500 text-center">{saveError}</p>
-          )}
+          {saveError && <p className="text-xs text-red-500 text-center">{saveError}</p>}
           {driveItems.length > 0 && (
             <button
               onClick={() => setShowDriveModal(true)}
@@ -544,9 +727,11 @@ export default function BatchPlanner({ recipes = [], updateRecipe, addToCart }) 
     );
   }
 
-  // ── Setup form
+  // ── Setup form (generate view, no plan)
   return (
     <div className="space-y-4">
+      {viewToggle}
+
       <div className="bg-white rounded-2xl shadow-sm border border-black/5 p-4">
         <h2 className="text-[15px] font-semibold text-[#1c1c1e] mb-4">Période du plan</h2>
         <div className="space-y-3">
@@ -582,6 +767,11 @@ export default function BatchPlanner({ recipes = [], updateRecipe, addToCart }) 
         {dayCount > 14 && (
           <p className="text-xs text-red-500 mt-2 text-center">Maximum 14 jours</p>
         )}
+        {existingMealsInRange.length > 0 && (
+          <div className="mt-3 bg-blue-50 border border-blue-100 rounded-xl px-3 py-2 text-xs text-blue-700">
+            📌 {existingMealsInRange.length} repas déjà planifié{existingMealsInRange.length > 1 ? 's' : ''} dans cette période seront conservés
+          </div>
+        )}
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-black/5 p-4 flex items-center justify-between">
@@ -606,9 +796,7 @@ export default function BatchPlanner({ recipes = [], updateRecipe, addToCart }) 
               className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                 activeChips.includes(chip.id) ? 'bg-orange-500 text-white' : 'bg-[#f2f2f7] text-[#3a3a3c]'
               }`}
-            >
-              {chip.label}
-            </button>
+            >{chip.label}</button>
           ))}
         </div>
       </div>
@@ -629,17 +817,12 @@ export default function BatchPlanner({ recipes = [], updateRecipe, addToCart }) 
           <p className="text-[11px] font-semibold text-[#8e8e93] uppercase tracking-wider mb-3">📋 Plans précédents</p>
           {historyLoading ? (
             <div className="space-y-2">
-              {[1, 2].map((i) => (
-                <div key={i} className="h-14 bg-[#f2f2f7] rounded-xl animate-pulse" />
-              ))}
+              {[1, 2].map((i) => <div key={i} className="h-14 bg-[#f2f2f7] rounded-xl animate-pulse" />)}
             </div>
           ) : (
             <div className="space-y-2">
               {historyPlans.map((plan) => (
-                <div
-                  key={plan.id}
-                  className="bg-[#f2f2f7] rounded-xl px-3 py-2.5 flex items-center gap-2"
-                >
+                <div key={plan.id} className="bg-[#f2f2f7] rounded-xl px-3 py-2.5 flex items-center gap-2">
                   <button
                     onClick={() => handleLoadHistory(plan)}
                     disabled={loadingPlanId === plan.id || deletingPlanId === plan.id}
@@ -657,15 +840,11 @@ export default function BatchPlanner({ recipes = [], updateRecipe, addToCart }) 
                           onClick={() => handleDeletePlan(plan.id)}
                           disabled={deletingPlanId === plan.id}
                           className="text-[11px] bg-red-500 text-white px-2.5 py-1 rounded-full font-semibold"
-                        >
-                          {deletingPlanId === plan.id ? '…' : 'Suppr.'}
-                        </button>
+                        >{deletingPlanId === plan.id ? '…' : 'Suppr.'}</button>
                         <button
                           onClick={() => setConfirmDeletePlanId(null)}
                           className="text-[11px] bg-white text-[#3a3a3c] px-2.5 py-1 rounded-full font-semibold"
-                        >
-                          Annuler
-                        </button>
+                        >Annuler</button>
                       </>
                     ) : (
                       <>
@@ -676,9 +855,7 @@ export default function BatchPlanner({ recipes = [], updateRecipe, addToCart }) 
                           onClick={() => setConfirmDeletePlanId(plan.id)}
                           title="Supprimer de Notion"
                           className="text-[#c7c7cc] text-base hover:text-red-400 transition-colors"
-                        >
-                          🗑️
-                        </button>
+                        >🗑️</button>
                       </>
                     )}
                   </div>

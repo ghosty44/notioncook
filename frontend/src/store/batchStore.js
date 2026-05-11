@@ -16,6 +16,9 @@ export const useBatchStore = create(
       entries: [],
       peopleCount: 4,
 
+      // Calendar meals: { [date: 'YYYY-MM-DD']: { lunch: recipeObj | null, dinner: recipeObj | null } }
+      calendarMeals: {},
+
       // Favorites (array of recipe id or name)
       favorites: [],
 
@@ -65,6 +68,22 @@ export const useBatchStore = create(
         set((state) => ({ entries: state.entries.filter((e) => e.recipe.id !== recipeId) })),
       setPeopleCount: (n) => set({ peopleCount: Math.max(1, Math.min(20, n)) }),
       clearSession: () => set({ entries: [] }),
+
+      setCalendarMeal: (date, mealType, meal) =>
+        set((s) => ({
+          calendarMeals: {
+            ...s.calendarMeals,
+            [date]: { ...s.calendarMeals[date], [mealType]: meal },
+          },
+        })),
+
+      clearCalendarMeal: (date, mealType) =>
+        set((s) => ({
+          calendarMeals: {
+            ...s.calendarMeals,
+            [date]: { ...s.calendarMeals[date], [mealType]: null },
+          },
+        })),
 
       toggleFavorite: (recipe) =>
         set((s) => {
