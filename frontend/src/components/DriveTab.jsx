@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useBatchStore } from '../store/batchStore';
+import api from '../utils/api';
 
 const CATEGORY_ORDER = [
   'Légumes & Fruits', 'Viandes & Poissons', 'Produits laitiers & Œufs',
@@ -36,6 +37,8 @@ export default function DriveTab() {
   const { driveItems, removeDriveItem, clearDrive, peopleCount } = useBatchStore();
   const [copied, setCopied] = useState(false);
   const [showPrompt, setShowPrompt] = useState(false);
+  const [costEstimate, setCostEstimate] = useState(null);
+  const [estimating, setEstimating] = useState(false);
 
   const grouped = useMemo(() => groupByCategory(driveItems), [driveItems]);
 
@@ -56,7 +59,21 @@ export default function DriveTab() {
   }
 
   function handleClear() {
-    if (window.confirm('Vider tout le panier ?')) clearDrive();
+    if (window.confirm('Vider tout le panier ?')) {
+      clearDrive();
+      setCostEstimate(null);
+    }
+  }
+
+  async function handleEstimateCost() {
+    if (estimating || driveItems.length === 0) return;
+    setEstimating(true);
+    setCostEstimate(null);
+    try {
+      const estimate = await api.post('/gemini/estimate-cart-cost', { items: driveItems });
+      setCostEstimate(estimate);
+    } catch { /* silently fail */ }
+    finally { setEstimating(false); }
   }
 
   if (driveItems.length === 0) {
@@ -124,6 +141,27 @@ export default function DriveTab() {
         </div>
       </div>
 
+      {/* AI cost estimation */}
+      <div className="bg-white rounded-2xl shadow-sm border border-black/5 p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-[15px] font-semibold text-[#1c1c1e]">Estimation du coût</p>
+            {costEstimate && (
+              <p className="text-[13px] font-bold text-orange-500 mt-0.5">Total estimé : {costEstimate.total?.toFixed(2).replace('.', ',')} €</p>
+            )}
+          </div>
+          <button
+            onClick={handleEstimateCost}
+            disabled={estimating}
+            className="flex items-center gap-1.5 bg-[#f2f2f7] text-[#3a3a3c] px-3.5 py-2 rounded-xl text-sm font-semibold disabled:opacity-50 active:scale-[0.97] transition-all"
+          >
+            {estimating ? (
+              <><div className="w-3.5 h-3.5 border-2 border-[#8e8e93] border-t-transparent rounded-full animate-spin" /> Estimation…</>
+            ) : '💰 Estimer le coût (IA)'}
+          </button>
+        </div>
+      </div>
+
       {/* Prompt preview */}
       {showPrompt && (
         <div className="bg-[#1c1c1e] rounded-2xl p-4">
@@ -140,24 +178,30 @@ export default function DriveTab() {
           <div className="px-4 pt-3 pb-1">
             <p className="text-[11px] font-semibold text-[#8e8e93] uppercase tracking-wider">{category}</p>
           </div>
-          {items.map((item, i) => (
-            <div
-              key={item.id}
-              className={`flex items-center gap-3 px-4 py-3 ${
-                i < items.length - 1 ? 'border-b border-[#f2f2f7]' : ''
-              }`}
-            >
-              <div className="w-2 h-2 rounded-full bg-orange-400 shrink-0" />
-              <span className="flex-1 text-sm text-[#1c1c1e]">{item.text}</span>
-              <button
-                onClick={() => removeDriveItem(item.id)}
-                className="text-[#c7c7cc] hover:text-red-400 transition-colors text-lg w-7 h-7 flex items-center justify-center shrink-0"
-                title="Supprimer"
+          {items.map((item, i) => {
+            const estimatedPrice = costEstimate?.items?.find((e) => e.text === item.text)?.price;
+            return (
+              <div
+                key={item.id}
+                className={`flex items-center gap-3 px-4 py-3 ${
+                  i < items.length - 1 ? 'border-b border-[#f2f2f7]' : ''
+                }`}
               >
-                ×
-              </button>
-            </div>
-          ))}
+                <div className="w-2 h-2 rounded-full bg-orange-400 shrink-0" />
+                <span className="flex-1 text-sm text-[#1c1c1e]">{item.text}</span>
+                {estimatedPrice != null && (
+                  <span className="text-xs text-[#8e8e93] shrink-0">{estimatedPrice.toFixed(2).replace('.', ',')} €</span>
+                )}
+                <button
+                  onClick={() => removeDriveItem(item.id)}
+                  className="text-[#c7c7cc] hover:text-red-400 transition-colors text-lg w-7 h-7 flex items-center justify-center shrink-0"
+                  title="Supprimer"
+                >
+                  ×
+                </button>
+              </div>
+            );
+          })}
         </div>
       ))}
     </div>

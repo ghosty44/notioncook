@@ -30,7 +30,13 @@ export function useRecipes() {
     setRecipes((prev) => prev.filter((r) => r.id !== id));
   }
 
+  async function updateRecipe(id, fields) {
+    const updated = await api.patch(`/notion/recipes/${id}`, fields);
+    setRecipes((prev) => prev.map((r) => r.id === id ? { ...r, ...updated } : r));
+    return updated;
+  }
+
   useEffect(() => { fetchRecipes(); }, []);
 
-  return { recipes, loading, error, refetch: fetchRecipes, saveToNotion, deleteRecipeById };
+  return { recipes, loading, error, refetch: fetchRecipes, saveToNotion, deleteRecipeById, updateRecipe };
 }

@@ -44,7 +44,7 @@ function resizeAndEncode(file) {
       canvas.height = height;
       canvas.getContext('2d').drawImage(img, 0, 0, width, height);
       const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-      const [meta, base64] = dataUrl.split(',');
+      const [, base64] = dataUrl.split(',');
       resolve({ dataUrl, base64, mimeType: 'image/jpeg' });
     };
     img.src = objectUrl;
@@ -86,7 +86,8 @@ export default function AISuggestions({ onSaveToNotion }) {
     try {
       const recipeKey = recipe.id || recipe.name;
       const notes = comments[recipeKey] || '';
-      await onSaveToNotion({ ...recipe, notes });
+      const favori = favorites.includes(recipeKey);
+      await onSaveToNotion({ ...recipe, notes, favori });
       setSaved((p) => ({ ...p, [recipe.id]: true }));
     } catch {
       // silently fail

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useBatchStore } from '../store/batchStore';
 import api from '../utils/api';
 import DriveReviewModal from './DriveReviewModal';
+import RecipeModal from './RecipeModal';
+import RecipePickerModal from './RecipePickerModal';
 
 const PREF_CHIPS = [
   { id: 'vegetarien', label: '🥦 Végétarien' },
@@ -29,7 +31,7 @@ function formatMinutes(min) {
   return m ? `${h}h${m}` : `${h}h`;
 }
 
-function MealRow({ meal, icon, label, regenerating, onRegenerate }) {
+function MealRow({ meal, icon, label, regenerating, onRegenerate, onClick, onSwap }) {
   if (!meal) return null;
   return (
     <div className="p-4">
@@ -41,43 +43,54 @@ function MealRow({ meal, icon, label, regenerating, onRegenerate }) {
             <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium">♻️ batch</span>
           )}
         </div>
-        {onRegenerate && (
-          <button
-            onClick={onRegenerate}
-            disabled={regenerating}
-            title="Régénérer ce repas"
-            className="w-7 h-7 flex items-center justify-center rounded-full bg-[#f2f2f7] disabled:opacity-50 transition-opacity"
-          >
-            {regenerating
-              ? <div className="w-3.5 h-3.5 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
-              : <span className="text-sm">🔄</span>}
-          </button>
+        <div className="flex items-center gap-1.5">
+          {onSwap && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onSwap(); }}
+              title="Changer cette recette"
+              className="w-7 h-7 flex items-center justify-center rounded-full bg-[#f2f2f7] text-xs font-bold text-[#3a3a3c]"
+            >⇄</button>
+          )}
+          {onRegenerate && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onRegenerate(); }}
+              disabled={regenerating}
+              title="Régénérer ce repas"
+              className="w-7 h-7 flex items-center justify-center rounded-full bg-[#f2f2f7] disabled:opacity-50 transition-opacity"
+            >
+              {regenerating
+                ? <div className="w-3.5 h-3.5 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                : <span className="text-sm">🔄</span>}
+            </button>
+          )}
+        </div>
+      </div>
+      <div onClick={onClick} className={onClick ? 'cursor-pointer active:opacity-70 transition-opacity' : ''}>
+        <p className="text-[15px] font-bold text-[#1c1c1e] leading-tight mb-1">{meal.name}</p>
+        {meal.description && (
+          <p className="text-xs text-[#8e8e93] leading-relaxed mb-2">{meal.description}</p>
+        )}
+        {(meal.prepTime > 0 || meal.cookTime > 0) && (
+          <div className="flex gap-2 flex-wrap mb-2">
+            {meal.prepTime > 0 && (
+              <span className="text-[11px] text-[#8e8e93] bg-[#f2f2f7] px-2 py-1 rounded-full">🔪 {meal.prepTime} min</span>
+            )}
+            {meal.cookTime > 0 && (
+              <span className="text-[11px] text-[#8e8e93] bg-[#f2f2f7] px-2 py-1 rounded-full">🔥 {meal.cookTime} min</span>
+            )}
+          </div>
+        )}
+        {meal.batchNote && (
+          <div className="bg-green-50 border border-green-100 rounded-xl px-3 py-2">
+            <p className="text-xs text-green-700 leading-relaxed">♻️ {meal.batchNote}</p>
+          </div>
         )}
       </div>
-      <p className="text-[15px] font-bold text-[#1c1c1e] leading-tight mb-1">{meal.name}</p>
-      {meal.description && (
-        <p className="text-xs text-[#8e8e93] leading-relaxed mb-2">{meal.description}</p>
-      )}
-      {(meal.prepTime > 0 || meal.cookTime > 0) && (
-        <div className="flex gap-2 flex-wrap mb-2">
-          {meal.prepTime > 0 && (
-            <span className="text-[11px] text-[#8e8e93] bg-[#f2f2f7] px-2 py-1 rounded-full">🔪 {meal.prepTime} min</span>
-          )}
-          {meal.cookTime > 0 && (
-            <span className="text-[11px] text-[#8e8e93] bg-[#f2f2f7] px-2 py-1 rounded-full">🔥 {meal.cookTime} min</span>
-          )}
-        </div>
-      )}
-      {meal.batchNote && (
-        <div className="bg-green-50 border border-green-100 rounded-xl px-3 py-2">
-          <p className="text-xs text-green-700 leading-relaxed">♻️ {meal.batchNote}</p>
-        </div>
-      )}
     </div>
   );
 }
 
-export default function BatchPlanner() {
+export default function BatchPlanner({ recipes = [], updateRecipe }) {
   const {
     startDate, endDate, mealPlan, planLoading, planError, planPreferences,
     peopleCount, setPeopleCount, setDateRange, setMealPlan, setPlanLoading,
@@ -99,6 +112,8 @@ export default function BatchPlanner() {
   const [deletingPlanId, setDeletingPlanId] = useState(null);
   const [editingBatchDateIndex, setEditingBatchDateIndex] = useState(null);
   const [showDriveModal, setShowDriveModal] = useState(false);
+  const [selectedMeal, setSelectedMeal] = useState(null);
+  const [swapTarget, setSwapTarget] = useState(null);
 
   useEffect(() => {
     setSavedPlan(null);
@@ -116,8 +131,6 @@ export default function BatchPlanner() {
 
   const dayCount = getDayCount(startDate, endDate);
   const canGenerate = startDate && endDate && dayCount >= 1 && dayCount <= 14;
-  const today = new Date().toISOString().split('T')[0];
-  const todayDay = mealPlan?.days?.find((d) => d.date === today);
 
   const overlappingPlan = startDate && endDate
     ? historyPlans.find((p) => {
@@ -129,6 +142,27 @@ export default function BatchPlanner() {
 
   function toggleChip(id) {
     setActiveChips((p) => p.includes(id) ? p.filter((c) => c !== id) : [...p, id]);
+  }
+
+  function openRecipeModal(meal) {
+    if (!meal) return;
+    const found = recipes.find((r) => r.name === meal.name);
+    setSelectedMeal(found || { name: meal.name, prepTime: meal.prepTime, cookTime: meal.cookTime, instructions: meal.description });
+  }
+
+  function handleSwapSelect(recipe) {
+    if (!swapTarget) return;
+    updateMeal(swapTarget.date, swapTarget.mealType, {
+      name: recipe.name,
+      prepTime: recipe.prepTime,
+      cookTime: recipe.cookTime,
+      description: recipe.instructions?.split('\n')[0] || recipe.description || '',
+      servings: recipe.servings,
+      batchNote: recipe.batchNote,
+      ingredients: recipe.ingredients,
+      instructions: recipe.instructions,
+    });
+    setSwapTarget(null);
   }
 
   async function handleGenerate() {
@@ -282,26 +316,11 @@ export default function BatchPlanner() {
           )}
         </div>
 
-        {/* Today banner */}
-        {todayDay && (
-          <div
-            className="bg-orange-50 rounded-2xl border border-orange-200 overflow-hidden animate-page-enter"
-            style={{ animationDelay: '40ms' }}
-          >
-            <div className="px-4 pt-3 pb-1">
-              <p className="text-[11px] font-semibold text-orange-600 uppercase tracking-wider">📅 Aujourd'hui</p>
-            </div>
-            <MealRow meal={todayDay.lunch} icon="🌞" label="Midi" />
-            <div className="border-t border-orange-100" />
-            <MealRow meal={todayDay.dinner} icon="🌙" label="Soir" />
-          </div>
-        )}
-
         {/* Batch sessions */}
         {mealPlan.batchSessions?.length > 0 && (
           <div
             className="bg-orange-50 rounded-2xl border border-orange-100 p-4 animate-page-enter"
-            style={{ animationDelay: '80ms' }}
+            style={{ animationDelay: '40ms' }}
           >
             <p className="text-[11px] font-semibold text-orange-600 uppercase tracking-wider mb-3">
               🔄 Sessions de préparation batch
@@ -373,6 +392,8 @@ export default function BatchPlanner() {
               label="Midi"
               regenerating={!!regenerating[`${day.date}-lunch`]}
               onRegenerate={() => handleRegenerate(day.date, 'lunch')}
+              onClick={() => openRecipeModal(day.lunch)}
+              onSwap={() => setSwapTarget({ date: day.date, mealType: 'lunch' })}
             />
             <div className="border-t border-[#f2f2f7]" />
             <MealRow
@@ -381,6 +402,8 @@ export default function BatchPlanner() {
               label="Soir"
               regenerating={!!regenerating[`${day.date}-dinner`]}
               onRegenerate={() => handleRegenerate(day.date, 'dinner')}
+              onClick={() => openRecipeModal(day.dinner)}
+              onSwap={() => setSwapTarget({ date: day.date, mealType: 'dinner' })}
             />
           </div>
         ))}
@@ -446,6 +469,24 @@ export default function BatchPlanner() {
             sourceName={`Plan ${startDate ? 'du ' + startDate : ''}`}
             onConfirm={(items) => { addDriveItems(items); setShowDriveModal(false); }}
             onClose={() => setShowDriveModal(false)}
+          />
+        )}
+
+        {selectedMeal && (
+          <RecipeModal
+            recipe={selectedMeal}
+            onClose={() => setSelectedMeal(null)}
+            onUpdate={selectedMeal.notionUrl && updateRecipe ? (fields) => updateRecipe(selectedMeal.id, fields) : null}
+          />
+        )}
+
+        {swapTarget && (
+          <RecipePickerModal
+            recipes={recipes}
+            onSelect={handleSwapSelect}
+            onClose={() => setSwapTarget(null)}
+            slot={swapTarget.mealType}
+            date={swapTarget.date}
           />
         )}
       </div>

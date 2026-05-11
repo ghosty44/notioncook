@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useBatchStore } from '../store/batchStore';
 import { parseIngredientLines, categorizeIngredient } from '../utils/shoppingListUtils';
@@ -31,16 +31,49 @@ function scaleIngredients(ingredients, from, to) {
   );
 }
 
-export default function RecipeModal({ recipe, onClose, showBatchNote = false }) {
+export default function RecipeModal({ recipe, onClose, showBatchNote = false, onUpdate = null }) {
   const { addDriveItems, favorites, toggleFavorite, comments, setComment } = useBatchStore();
   const [showDriveModal, setShowDriveModal] = useState(false);
   const [servings, setServings] = useState(recipe.servings || 1);
 
   const recipeKey = recipe.id || recipe.name;
-  const isFav = favorites.includes(recipeKey);
-  const comment = comments[recipeKey] || '';
+  const isNotionRecipe = !!recipe.notionUrl;
   const baseServings = recipe.servings || 1;
+
+  const [isFav, setIsFav] = useState(isNotionRecipe ? (recipe.favori ?? false) : favorites.includes(recipeKey));
+  const [localComment, setLocalComment] = useState(isNotionRecipe ? (recipe.notes || '') : (comments[recipeKey] || ''));
+  const [dejaFait, setDejaFait] = useState(recipe.dejaFait ?? false);
+
+  const commentDebounce = useRef(null);
+  useEffect(() => () => { if (commentDebounce.current) clearTimeout(commentDebounce.current); }, []);
+
   const scaledIngredients = scaleIngredients(recipe.ingredients, baseServings, servings);
+
+  function handleFavToggle() {
+    if (isNotionRecipe) {
+      const newVal = !isFav;
+      setIsFav(newVal);
+      onUpdate?.({ favori: newVal });
+    } else {
+      toggleFavorite(recipe);
+    }
+  }
+
+  function handleCommentChange(text) {
+    setLocalComment(text);
+    if (isNotionRecipe) {
+      if (commentDebounce.current) clearTimeout(commentDebounce.current);
+      commentDebounce.current = setTimeout(() => onUpdate?.({ notes: text }), 1000);
+    } else {
+      setComment(recipeKey, text);
+    }
+  }
+
+  function handleDejaFaitToggle() {
+    const newVal = !dejaFait;
+    setDejaFait(newVal);
+    onUpdate?.({ dejaFait: newVal });
+  }
 
   const content = (
     <>
@@ -62,7 +95,7 @@ export default function RecipeModal({ recipe, onClose, showBatchNote = false }) 
               <h2 className="text-[22px] font-bold text-[#1c1c1e] leading-tight">{recipe.name}</h2>
               <div className="flex items-center gap-2 shrink-0">
                 <button
-                  onClick={() => toggleFavorite(recipe)}
+                  onClick={handleFavToggle}
                   className="bg-[#f2f2f7] rounded-full w-8 h-8 flex items-center justify-center text-sm"
                   aria-label={isFav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
                 >
@@ -76,7 +109,7 @@ export default function RecipeModal({ recipe, onClose, showBatchNote = false }) 
             </div>
 
             {/* Badges */}
-            <div className="flex flex-wrap gap-2 mb-5">
+            <div className="flex flex-wrap gap-2 mb-4">
               {recipe.category && (
                 <span className="bg-orange-100 text-orange-600 text-xs font-medium px-3 py-1 rounded-full">{recipe.category}</span>
               )}
@@ -85,6 +118,16 @@ export default function RecipeModal({ recipe, onClose, showBatchNote = false }) 
               )}
               {recipe.babyAdaptation && (
                 <span className="bg-pink-100 text-pink-600 text-xs font-medium px-3 py-1 rounded-full">👶 Bébé {babyAgeMonths} mois</span>
+              )}
+              {isNotionRecipe && (
+                <button
+                  onClick={handleDejaFaitToggle}
+                  className={`text-xs font-medium px-3 py-1 rounded-full transition-colors ${
+                    dejaFait ? 'bg-green-100 text-green-700' : 'bg-[#f2f2f7] text-[#8e8e93]'
+                  }`}
+                >
+                  {dejaFait ? '✓ Déjà réalisée' : 'Pas encore réalisée'}
+                </button>
               )}
             </div>
 
@@ -190,8 +233,8 @@ export default function RecipeModal({ recipe, onClose, showBatchNote = false }) 
             <div className="mb-4">
               <h3 className="text-[15px] font-semibold text-[#1c1c1e] mb-2">📝 Commentaire</h3>
               <textarea
-                value={comment}
-                onChange={(e) => setComment(recipeKey, e.target.value)}
+                value={localComment}
+                onChange={(e) => handleCommentChange(e.target.value)}
                 placeholder="Tes notes sur cette recette…"
                 rows={3}
                 className="w-full bg-[#f2f2f7] rounded-2xl px-4 py-3 text-sm placeholder-[#8e8e93] outline-none resize-none"
