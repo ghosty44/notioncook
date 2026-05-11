@@ -36,6 +36,8 @@ function pageToRecipe(page) {
     storageMethod: props.StorageMethod?.select?.name ?? null,
     babyAdaptation: richTextToString(props.BabyAdaptation?.rich_text),
     notes: richTextToString(props.Notes?.rich_text),
+    favori: props.Favori?.checkbox ?? false,
+    dejaFait: props['DéjàFait']?.checkbox ?? false,
     imageUrl: page.cover?.external?.url || page.cover?.file?.url || null,
     notionUrl: page.url,
     createdAt: page.created_time,
@@ -81,12 +83,23 @@ async function createRecipe(recipe) {
   if (recipe.storageMethod) props.StorageMethod = { select: { name: recipe.storageMethod } };
   if (recipe.babyAdaptation) props.BabyAdaptation = { rich_text: toRichText(recipe.babyAdaptation) };
   if (recipe.notes) props.Notes = { rich_text: toRichText(recipe.notes) };
+  if (recipe.favori) props.Favori = { checkbox: true };
+  if (recipe.dejaFait) props['DéjàFait'] = { checkbox: true };
 
   const response = await notion.pages.create({
     parent: { database_id: DATABASE_ID },
     properties: props,
   });
   return pageToRecipe(response);
+}
+
+async function updateRecipe(id, fields) {
+  const props = {};
+  if (fields.notes !== undefined) props.Notes = { rich_text: toRichText(fields.notes) };
+  if (fields.favori !== undefined) props.Favori = { checkbox: Boolean(fields.favori) };
+  if (fields.dejaFait !== undefined) props['DéjàFait'] = { checkbox: Boolean(fields.dejaFait) };
+  const page = await notion.pages.update({ page_id: id, properties: props });
+  return pageToRecipe(page);
 }
 
 async function searchRecipes(query) {
@@ -139,7 +152,6 @@ async function findPlanByDates(startDate, endDate) {
   return response.results[0] || null;
 }
 
-// Returns plans whose date range overlaps [startDate, endDate], excluding exact matches.
 async function findOverlappingPlans(startDate, endDate) {
   const response = await notion.databases.query({
     database_id: MEAL_PLANS_DB_ID,
@@ -230,7 +242,6 @@ async function saveMealPlan({ plan, startDate, endDate, peopleCount, preferences
     throw new Error('NOTION_MEAL_PLANS_DB_ID ou NOTION_DAYS_DB_ID manquant dans .env');
   }
 
-  // Block overlapping plans (exact match is allowed — it's an upsert)
   const overlaps = await findOverlappingPlans(startDate, endDate);
   if (overlaps.length > 0) {
     const name = richTextToString(overlaps[0].properties.Nom?.title) || 'Plan existant';
@@ -326,7 +337,7 @@ async function saveMealPlan({ plan, startDate, endDate, peopleCount, preferences
 }
 
 module.exports = {
-  getAllRecipes, getRecipeById, createRecipe, searchRecipes,
+  getAllRecipes, getRecipeById, createRecipe, updateRecipe, searchRecipes,
   saveMealPlan, getMealPlans, getMealPlanById,
   deleteRecipe, deleteMealPlan,
 };

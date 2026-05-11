@@ -222,4 +222,18 @@ Réponds UNIQUEMENT avec ce JSON (sans texte autour) :
   return JSON.parse(jsonMatch[0]);
 }
 
-module.exports = { generateRecipe, generateRecipeFromImage, generateRecipeFromUrl, generateMealPlan, regenerateMeal, expandMeal, generatePlatingSteps };
+async function estimateCartCost(items) {
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-2.5-flash',
+    generationConfig: { thinkingConfig: { thinkingBudget: 0 } },
+  });
+  const list = items.map((i) => `- ${i.text}`).join('\n');
+  const prompt = `Tu es un expert en prix de supermarché français (Intermarché, Carrefour, Leclerc). Estime le prix de chaque article de cette liste de courses. Pour chaque article, reprends le texte exact. Réponds UNIQUEMENT avec ce JSON valide, sans texte autour :\n{"items":[{"text":"texte exact de l'article","price":2.50}],"total":12.00}\n\nListe d'articles :\n${list}`;
+  const result = await model.generateContent(prompt);
+  const text = result.response.text();
+  const json = text.match(/\{[\s\S]*\}/)?.[0];
+  if (!json) throw new Error('Réponse Gemini invalide pour l\'estimation du coût');
+  return JSON.parse(json);
+}
+
+module.exports = { generateRecipe, generateRecipeFromImage, generateRecipeFromUrl, generateMealPlan, regenerateMeal, expandMeal, generatePlatingSteps, estimateCartCost };

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { generateRecipe, generateRecipeFromImage, generateRecipeFromUrl, generateMealPlan, regenerateMeal, expandMeal, generatePlatingSteps } = require('../services/geminiService');
+const { generateRecipe, generateRecipeFromImage, generateRecipeFromUrl, generateMealPlan, regenerateMeal, expandMeal, generatePlatingSteps, estimateCartCost } = require('../services/geminiService');
 
 router.post('/generate', async (req, res, next) => {
   try {
@@ -85,6 +85,14 @@ router.post('/plating-steps', async (req, res, next) => {
   } catch (err) {
     next(err);
   }
+});
+
+router.post('/estimate-cart-cost', async (req, res, next) => {
+  try {
+    const { items } = req.body;
+    if (!items?.length) return res.status(400).json({ error: 'items requis' });
+    res.json(await estimateCartCost(items));
+  } catch (err) { next(err); }
 });
 
 module.exports = router;

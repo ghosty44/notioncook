@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const {
-  getAllRecipes, getRecipeById, createRecipe, searchRecipes,
+  getAllRecipes, getRecipeById, createRecipe, updateRecipe, searchRecipes,
   saveMealPlan, getMealPlans, getMealPlanById,
   deleteRecipe, deleteMealPlan,
 } = require('../services/notionService');
@@ -27,6 +27,7 @@ router.post('/recipes', async (req, res, next) => {
     const {
       name, ingredients, instructions, prepTime, cookTime, servings,
       tags, category, batchFriendly, storageDays, storageMethod, babyAdaptation,
+      notes, favori, dejaFait,
     } = req.body;
     if (!name) return res.status(400).json({ error: 'Le nom de la recette est requis' });
     const created = await createRecipe({
@@ -36,9 +37,17 @@ router.post('/recipes', async (req, res, next) => {
       storageDays: storageDays || null,
       storageMethod: storageMethod || null,
       babyAdaptation: babyAdaptation || '',
+      notes: notes || '',
+      favori: favori || false,
+      dejaFait: dejaFait || false,
     });
     res.status(201).json(created);
   } catch (err) { next(err); }
+});
+
+router.patch('/recipes/:id', async (req, res, next) => {
+  try { res.json(await updateRecipe(req.params.id, req.body)); }
+  catch (err) { next(err); }
 });
 
 router.delete('/recipes/:id', async (req, res, next) => {
