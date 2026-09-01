@@ -50,16 +50,20 @@ Points structurants :
 - Enum `aisle` : son **ordre est l'ordre de parcours du drive**, la liste de
   courses est triée dessus.
 
-## 5. Serveur MCP (phase 2, pas encore livré)
+## 5. Serveur MCP (phase 2, livrée)
 
-Route handler Next à `/api/mcp`, transport HTTP streamable, SDK
-`@modelcontextprotocol/sdk`. Auth par jeton de foyer en header
+Route handler Next à `/api/mcp`, transport HTTP streamable, paquet officiel
+`@modelcontextprotocol/server` v2. Auth par jeton de foyer en header
 `Authorization: Bearer`, jamais de requête non authentifiée. Tous les outils
 scopés au foyer déduit du jeton, toutes les entrées validées par les **mêmes
 schémas Zod que les routes REST** (`lib/schemas/`).
 
-Outils prévus : `search_meals`, `get_meal`, `add_meal`, `update_meal`,
-`log_meal`, `suggest_meals`, `get_week_plan`, `set_plan_entry`,
+Livrés : `search_meals`, `get_meal`, `add_meal`, `update_meal`, `log_meal`,
+`suggest_meals`. Le serveur est instancié par requête par la fabrique de
+`createMcpHandler`, avec le foyer figé dedans : ne jamais lire le foyer depuis
+les arguments d'un outil.
+
+Restent à faire : `get_week_plan`, `set_plan_entry`,
 `generate_shopping_list`, `add_to_shopping_list`, `get_shopping_list`,
 `get_recurring_items`, `set_product_preference`, puis pour la boucle Cowork
 `get_store_rules`, `mark_list_ordered`, `reject_product`, `report_unavailable`.

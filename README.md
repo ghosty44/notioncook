@@ -23,7 +23,7 @@ existent, elles ne sont simplement pas encore exposées.
 
 Next.js 16 (App Router, TypeScript strict), Vercel Postgres (Neon), Drizzle ORM
 avec migrations versionnées, Tailwind CSS v4, Zod partagé entre les routes REST
-et les futurs outils MCP, Vitest.
+et les outils MCP, `@modelcontextprotocol/server` pour le serveur MCP, Vitest.
 
 ## Installation locale
 
@@ -66,6 +66,32 @@ obtient un déploiement de prévisualisation.
 | `npm run format`      | Prettier                                                     |
 | `npm run db:generate` | Génère une migration après modification du schéma            |
 | `npm run db:migrate`  | Applique les migrations à la base pointée par `DATABASE_URL` |
+
+## Serveur MCP
+
+Le serveur vit à `/api/mcp`, en transport HTTP streamable. Il n'accepte aucune
+requête non authentifiée.
+
+1. Ouvre l'onglet Journal de l'app, section **Connexion à Claude**, et génère un
+   jeton. Il n'est affiché qu'une fois ; en générer un nouveau révoque l'ancien.
+2. Dans Claude, ajoute un connecteur MCP vers `https://<ton-app>/api/mcp` avec
+   l'en-tête `Authorization: Bearer <jeton>`.
+
+Le jeton porte le foyer : tous les outils sont scopés dessus, et le serveur est
+instancié par requête avec ce foyer figé. Seule l'empreinte HMAC du jeton est
+stockée, jamais le jeton lui-même.
+
+| Outil           | Ce qu'il fait                                                     |
+| --------------- | ----------------------------------------------------------------- |
+| `search_meals`  | Cherche par nom, tag ou note, trié « pas fait depuis longtemps »  |
+| `get_meal`      | Fiche complète : ingrédients, étapes, note bébé, historique       |
+| `add_meal`      | Crée un repas, le nom suffit                                      |
+| `update_meal`   | Met à jour les champs fournis                                     |
+| `log_meal`      | Enregistre le réellement mangé, crée le repas en combo si inconnu |
+| `suggest_meals` | Classe par score déterministe, avec le détail du score            |
+
+Les réponses sont du texte structuré, pas du JSON brut, et incluent toujours les
+identifiants pour permettre les appels chaînés.
 
 ## Modèle mental
 
