@@ -18,6 +18,14 @@ function create() {
 let cached: Database | undefined;
 
 /**
+ * Réservé aux tests : substitue un client Postgres embarqué (PGlite) au client
+ * Neon, pour exercer les requêtes réelles sans base distante.
+ */
+export function setDatabaseForTests(instance: Database | undefined): void {
+  cached = instance;
+}
+
+/**
  * Client Drizzle résolu à la première requête et non à l'import, pour que le
  * build Next puisse compiler sans base de données configurée.
  */
