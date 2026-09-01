@@ -1,26 +1,54 @@
 @import 'tailwindcss';
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --background: #fbfaf7;
+  --surface: #ffffff;
+  --foreground: #1c1a17;
+  --muted: #6f6a62;
+  --border: #e6e2d9;
+  --accent: #b4531f;
+  --accent-soft: #fdf0e6;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #16150f;
+    --surface: #201e18;
+    --foreground: #f2efe8;
+    --muted: #a29b8f;
+    --border: #322f27;
+    --accent: #e8894f;
+    --accent-soft: #2c231b;
   }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-line: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  /* Le pouce vise mal : rien d'interactif ne descend sous 44 px de haut. */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Le zoom automatique de Safari sur les champs sous 16 px casse la saisie rapide. */
+input,
+textarea,
+select {
+  font-size: max(16px, 1rem);
 }
