@@ -12,5 +12,11 @@ export default async function JournalPage() {
     getHousehold(session.householdId),
   ]);
 
-  return <Journal logs={logs} inviteCode={household?.inviteCode ?? null} />;
+  return (
+    <Journal
+      logs={logs}
+      inviteCode={household?.inviteCode ?? null}
+      hasMcpToken={Boolean(household?.mcpTokenHash)}
+    />
+  );
 }

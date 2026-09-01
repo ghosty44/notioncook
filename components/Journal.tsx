@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Card } from './ui';
+import { HouseholdCard } from './HouseholdCard';
 
 type Log = {
   id: string;
@@ -14,7 +14,15 @@ type Log = {
   mealName: string;
 };
 
-export function Journal({ logs, inviteCode }: { logs: Log[]; inviteCode: string | null }) {
+export function Journal({
+  logs,
+  inviteCode,
+  hasMcpToken,
+}: {
+  logs: Log[];
+  inviteCode: string | null;
+  hasMcpToken: boolean;
+}) {
   const router = useRouter();
 
   async function remove(id: string) {
@@ -71,15 +79,7 @@ export function Journal({ logs, inviteCode }: { logs: Log[]; inviteCode: string 
         </section>
       ))}
 
-      {inviteCode && (
-        <Card>
-          <h2 className="text-sm font-semibold text-muted">Code du foyer</h2>
-          <p className="mt-1 text-xl font-bold tracking-[0.3em]">{inviteCode}</p>
-          <p className="mt-2 text-sm text-muted">
-            À donner à l&apos;autre adulte du foyer pour qu&apos;il rejoigne la même base.
-          </p>
-        </Card>
-      )}
+      <HouseholdCard inviteCode={inviteCode} hasMcpToken={hasMcpToken} />
     </div>
   );
 }
