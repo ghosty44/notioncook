@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  matchesFilters,
-  sortByLeastRecentlyCooked,
-  type LibraryMeal,
-} from '@/lib/domain/library';
+import { matchesFilters, sortByLeastRecentlyCooked, type LibraryMeal } from '@/lib/domain/library';
 
 function meal(over: Partial<LibraryMeal> = {}): LibraryMeal {
   return {
