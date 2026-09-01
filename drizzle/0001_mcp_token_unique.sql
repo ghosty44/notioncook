@@ -1,0 +1,1 @@
+ALTER TABLE "household" ADD CONSTRAINT "household_mcp_token_hash_unique" UNIQUE("mcp_token_hash");

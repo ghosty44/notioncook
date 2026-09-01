@@ -58,7 +58,7 @@ export const households = pgTable('household', {
   /** Code court partagé entre les adultes du foyer pour rejoindre. */
   inviteCode: text('invite_code').notNull().unique(),
   /** Empreinte du jeton MCP du foyer (phase 2). Le jeton clair n'est jamais stocké. */
-  mcpTokenHash: text('mcp_token_hash'),
+  mcpTokenHash: text('mcp_token_hash').unique(),
   mcpTokenCreatedAt: timestamp('mcp_token_created_at', { withTimezone: true }),
   /** Contraintes du foyer en texte libre, exposées au MCP (section 10.1). */
   constraints: text('constraints'),
