@@ -1,4 +1,7 @@
+import { aisleLabel, type Aisle } from '@/lib/domain/aisles';
 import type { LibraryMeal } from '@/lib/domain/library';
+import type { PlanCell } from '@/lib/domain/plan';
+import type { ShoppingListView } from '@/lib/domain/shopping';
 import type { MealDetail } from '@/lib/domain/meals';
 import type { ScoredMeal } from '@/lib/domain/suggestions';
 
@@ -75,4 +78,88 @@ export function formatSuggestion(meal: ScoredMeal, rank: number): string {
 
 export function text(content: string) {
   return { content: [{ type: 'text' as const, text: content }] };
+}
+
+/** Grille du planning rendue jour par jour, cases vides comprises. */
+export function formatWeekPlan(cells: PlanCell[]): string {
+  const days = [...new Set(cells.map((cell) => cell.date))];
+  const lines: string[] = [];
+
+  for (const date of days) {
+    const midi = cells.find((c) => c.date === date && c.slot === 'midi');
+    const soir = cells.find((c) => c.date === date && c.slot === 'soir');
+    lines.push(`${date} · midi : ${cellText(midi)} · soir : ${cellText(soir)}`);
+  }
+
+  return lines.join('\n');
+}
+
+function cellText(cell: PlanCell | undefined): string {
+  if (!cell) return 'vide';
+  if (cell.mealName) return `${cell.mealName} [${cell.mealId}]`;
+  if (cell.freeText) return cell.freeText;
+  return 'vide';
+}
+
+/**
+ * Liste rendue par rayon, dans l'ordre de parcours du magasin, avec pour chaque
+ * ligne mappée le libellé exact, la marque, le format et l'URL : de quoi
+ * remplir le panier sans avoir une seule décision à prendre.
+ */
+export function formatShoppingList(list: ShoppingListView): string {
+  const lines = [
+    `Liste ${list.id} · ${list.store?.name ?? 'aucune enseigne'} · ${list.status === 'ordered' ? 'commandée' : 'en cours'}`,
+  ];
+
+  if (list.unmapped.length > 0) {
+    lines.push('', `À mapper (${list.unmapped.length}) :`);
+    for (const item of list.unmapped) {
+      lines.push(`- ${item.label}${item.unit ? ` : ${item.unit}` : ''} [${item.id}]`);
+    }
+  }
+
+  let currentAisle: string | null = null;
+  for (const item of list.items) {
+    if (item.aisle !== currentAisle) {
+      currentAisle = item.aisle;
+      lines.push('', `${aisleLabel(item.aisle as Aisle)} :`);
+    }
+
+    const details = [item.brand, item.format].filter(Boolean).join(' · ');
+    lines.push(
+      `- ${item.isChecked ? '[x]' : '[ ]'} ${item.label}` +
+        (item.unit ? ` : ${item.unit}` : '') +
+        (details ? ` (${details})` : '') +
+        (item.productUrl ? ` ${item.productUrl}` : '') +
+        ` [${item.id}]`,
+    );
+  }
+
+  return lines.join('\n');
+}
+
+export function formatRecurringItems(
+  items: {
+    id: string;
+    label: string;
+    brand: string | null;
+    format: string | null;
+    frequencyWeeks: number;
+    isDue: boolean;
+    ingredientName: string;
+  }[],
+): string {
+  if (items.length === 0) return "Aucun socle récurrent enregistré pour l'instant.";
+
+  return (
+    `${items.length} récurrents :\n` +
+    items
+      .map(
+        (item) =>
+          `- ${item.label} [${item.id}] · ${item.ingredientName} · toutes les ${item.frequencyWeeks} semaine(s)` +
+          `${item.isDue ? ' · à racheter' : ''}` +
+          `${[item.brand, item.format].filter(Boolean).length ? ` (${[item.brand, item.format].filter(Boolean).join(' · ')})` : ''}`,
+      )
+      .join('\n')
+  );
 }
