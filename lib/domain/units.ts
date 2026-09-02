@@ -57,6 +57,14 @@ export function combine(a: Quantity, b: Quantity): Quantity {
   if (!da || !db) return { value: a.value + b.value, unit: a.unit ?? b.unit };
 
   const total = a.value * da.toBase + b.value * db.toBase;
+
+  // Deux quantités écrites dans la même unité la gardent : 40 cl + 40 cl fait
+  // 80 cl, pas 800 ml, parce que c'est en cl que le drive vend la brique.
+  if (da.canonical === db.canonical) {
+    const inUnit = total / da.toBase;
+    if (inUnit < 1000) return { value: round(inUnit), unit: da.canonical };
+  }
+
   return readable(total, da.dimension);
 }
 
