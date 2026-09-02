@@ -6,6 +6,8 @@ import { LogoutButton } from '@/components/LogoutButton';
 const TABS = [
   { href: '/', label: 'Capture' },
   { href: '/meals', label: 'Repas' },
+  { href: '/plan', label: 'Semaine' },
+  { href: '/courses', label: 'Courses' },
   { href: '/journal', label: 'Journal' },
 ];
 
@@ -33,7 +35,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <Link
               key={tab.href}
               href={tab.href}
-              className="flex-1 py-4 text-center text-sm font-medium"
+              className="flex-1 py-4 text-center text-xs font-medium sm:text-sm"
             >
               {tab.label}
             </Link>
