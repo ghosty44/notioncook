@@ -21,7 +21,8 @@ existent, elles ne sont simplement pas encore exposées.
 
 ## Stack
 
-Next.js 16 (App Router, TypeScript strict), Vercel Postgres (Neon), Drizzle ORM
+Next.js 16 (App Router, TypeScript strict), Postgres (Neon, via le Marketplace
+Vercel), Drizzle ORM
 avec migrations versionnées, Tailwind CSS v4, Zod partagé entre les routes REST
 et les outils MCP, `@modelcontextprotocol/server` pour le serveur MCP, Vitest.
 
@@ -42,15 +43,24 @@ sur un Postgres embarqué. Seul `npm run dev` a réellement besoin d'une base.
 
 ## Provisioning Vercel
 
-1. Sur [vercel.com](https://vercel.com), importer ce dépôt GitHub. Next.js est
-   détecté seul, aucune configuration de build à saisir.
-2. Onglet **Storage** du projet, créer un store **Postgres** (Neon) et le
-   rattacher au projet. Les variables `DATABASE_URL` et `POSTGRES_URL` sont
-   injectées automatiquement dans les trois environnements.
+1. Sur [vercel.com](https://vercel.com), importer ce dépôt GitHub. Le framework
+   est déclaré dans `vercel.json`, il n'y a aucune configuration de build à
+   saisir.
+2. Onglet **Storage** du projet, **Create Database**, choisir **Neon** dans le
+   Marketplace et le rattacher au projet. Les variables `DATABASE_URL` et
+   `POSTGRES_URL` sont alors injectées dans les trois environnements. Il n'y a
+   plus de produit « Vercel Postgres » : Postgres passe par le Marketplace.
 3. Onglet **Settings > Environment Variables**, ajouter `AUTH_SECRET`
-   (`openssl rand -base64 32`), sur Production, Preview et Development.
-4. Appliquer les migrations une fois, depuis ta machine, avec l'URL de
-   production dans `.env.local` : `npm run db:migrate`.
+   (`openssl rand -base64 32`), coché sur Production, Preview et Development.
+   Sans elle, aucune session ne peut être signée.
+4. Appliquer les migrations une fois, depuis ta machine, avec l'URL de la base
+   dans `.env.local` : `npm run db:migrate`.
+5. Redéployer (ou pousser un commit) pour que les variables soient prises en
+   compte : elles ne sont lues qu'au démarrage d'un nouveau déploiement.
+
+Tant que les étapes 2 et 3 ne sont pas faites, l'app se déploie correctement
+mais répond « L'app n'est pas encore reliée à sa base de données » à la
+première action.
 
 Le déploiement se déclenche ensuite à chaque push sur `main`, et chaque PR
 obtient un déploiement de prévisualisation.
