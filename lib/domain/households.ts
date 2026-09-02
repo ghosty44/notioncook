@@ -2,17 +2,9 @@ import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { households, users } from '@/lib/db/schema';
 import { canonicalInviteCode, generateInviteCode } from '@/lib/auth/codes';
+import { DomainError } from '@/lib/errors';
 import type { Session } from '@/lib/auth/session';
 import type { CreateHouseholdInput, JoinHouseholdInput } from '@/lib/schemas/auth';
-
-export class DomainError extends Error {
-  constructor(
-    message: string,
-    readonly status = 400,
-  ) {
-    super(message);
-  }
-}
 
 export async function createHousehold(input: CreateHouseholdInput): Promise<Session> {
   const [household] = await db()

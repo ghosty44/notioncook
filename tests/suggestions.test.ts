@@ -78,7 +78,7 @@ describe('scoreMeal', () => {
     expect(scored.reasons).toContain('-30 fait il y a moins de 7 jours');
   });
 
-  it("ne pénalise pas un repas jamais fait au titre des sept jours", () => {
+  it('ne pénalise pas un repas jamais fait au titre des sept jours', () => {
     const scored = scoreMeal(meal({ lastLoggedAt: null }), {}, TODAY);
     expect(scored.score).toBe(90);
     expect(scored.reasons.join(' ')).not.toContain('-30');

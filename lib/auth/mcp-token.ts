@@ -1,5 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
+import { ConfigurationError } from '@/lib/errors';
 import { households } from '@/lib/db/schema';
 
 const PREFIX = 'repas_';
@@ -7,7 +8,7 @@ const PREFIX = 'repas_';
 function secret(): Uint8Array<ArrayBuffer> {
   const value = process.env.MCP_TOKEN_SECRET ?? process.env.AUTH_SECRET;
   if (!value || value.length < 32) {
-    throw new Error(
+    throw new ConfigurationError(
       'MCP_TOKEN_SECRET manquante ou trop courte (32 caractères minimum). ' +
         'Génère-la avec `openssl rand -base64 32`.',
     );

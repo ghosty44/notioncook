@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createTestDatabase } from './harness';
-import { createHousehold, DomainError, getHousehold, joinHousehold } from '@/lib/domain/households';
+import { createHousehold, getHousehold, joinHousehold } from '@/lib/domain/households';
+import { DomainError } from '@/lib/errors';
 import {
   createMeal,
   deleteLog,

@@ -43,7 +43,12 @@ async function rpc(method: string, params: unknown, bearer = token) {
 
   // Le transport streamable répond soit en JSON, soit en SSE selon la négociation.
   const payload = raw.startsWith('event:')
-    ? JSON.parse(raw.split('\n').find((l) => l.startsWith('data:'))!.slice(5))
+    ? JSON.parse(
+        raw
+          .split('\n')
+          .find((l) => l.startsWith('data:'))!
+          .slice(5),
+      )
     : JSON.parse(raw);
 
   return { status: response.status, payload };
@@ -169,7 +174,7 @@ describe('serveur MCP', () => {
     expect(out).toMatch(/\+20 tient dans 15 min/);
   });
 
-  it("écarte un repas dont un ingrédient est exclu", async () => {
+  it('écarte un repas dont un ingrédient est exclu', async () => {
     const { payload } = await rpc('tools/call', {
       name: 'suggest_meals',
       arguments: { excludeIngredients: ['coco'], count: 5 },

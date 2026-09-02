@@ -1,5 +1,6 @@
 import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
+import { ConfigurationError } from '@/lib/errors';
 import * as schema from './schema';
 
 export type Database = ReturnType<typeof create>;
@@ -7,9 +8,9 @@ export type Database = ReturnType<typeof create>;
 function create() {
   const url = process.env.DATABASE_URL ?? process.env.POSTGRES_URL;
   if (!url) {
-    throw new Error(
+    throw new ConfigurationError(
       'DATABASE_URL manquante. Provisionne Vercel Postgres puis renseigne la variable ' +
-        "(voir README). L'app ne peut pas démarrer sans base.",
+        "(voir README). L'app ne peut pas servir de requête sans base.",
     );
   }
   return drizzle(neon(url), { schema });

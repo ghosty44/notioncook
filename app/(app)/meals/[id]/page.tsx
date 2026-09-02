@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import { readSession } from '@/lib/auth/session';
-import { DomainError } from '@/lib/domain/households';
+import { DomainError } from '@/lib/errors';
 import { getMeal, type MealDetail } from '@/lib/domain/meals';
 import { MealSheet } from '@/components/MealSheet';
 

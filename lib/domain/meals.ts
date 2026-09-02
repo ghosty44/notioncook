@@ -1,7 +1,7 @@
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { ingredients, mealIngredients, mealLogs, meals } from '@/lib/db/schema';
-import { DomainError } from './households';
+import { DomainError } from '@/lib/errors';
 import { matchesFilters, sortByLeastRecentlyCooked, type LibraryMeal } from './library';
 import { slugify, today } from './text';
 import type {

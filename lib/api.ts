@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { ZodError } from 'zod';
-import { DomainError } from '@/lib/domain/households';
+import { ConfigurationError, DomainError } from '@/lib/errors';
 import { readSession, type Session } from '@/lib/auth/session';
 
 /**
@@ -35,7 +35,16 @@ export function toErrorResponse(error: unknown): NextResponse {
     return NextResponse.json({ error: error.message }, { status: error.status });
   }
 
+  // Le détail va dans les logs serveur ; le client ne reçoit jamais un nom de
+  // variable d'environnement, un chemin interne ou une trace de base.
   console.error('[api]', error);
-  const message = error instanceof Error ? error.message : 'Erreur inattendue';
-  return NextResponse.json({ error: message }, { status: 500 });
+
+  if (error instanceof ConfigurationError) {
+    return NextResponse.json({ error: error.publicMessage }, { status: 503 });
+  }
+
+  return NextResponse.json(
+    { error: 'Une erreur est survenue de notre côté. Réessaie dans un instant.' },
+    { status: 500 },
+  );
 }

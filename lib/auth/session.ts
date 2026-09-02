@@ -1,4 +1,5 @@
 import { cookies } from 'next/headers';
+import { ConfigurationError } from '@/lib/errors';
 import { jwtVerify, SignJWT } from 'jose';
 
 const COOKIE = 'repas_session';
@@ -13,7 +14,7 @@ export type Session = {
 function secret(): Uint8Array {
   const value = process.env.AUTH_SECRET;
   if (!value || value.length < 32) {
-    throw new Error(
+    throw new ConfigurationError(
       'AUTH_SECRET manquante ou trop courte (32 caractères minimum). ' +
         'Génère-la avec `openssl rand -base64 32` et mets-la dans .env.local.',
     );
