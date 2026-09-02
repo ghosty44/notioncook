@@ -128,14 +128,22 @@ describe('serveur MCP', () => {
     expect(status).toBe(401);
   });
 
-  it('expose les six outils de la phase 2', async () => {
+  it('expose les outils des phases 2 et 3', async () => {
     const { payload } = await rpc('tools/list', {});
     const names = payload.result.tools.map((t: { name: string }) => t.name).sort();
     expect(names).toEqual([
       'add_meal',
+      'add_to_shopping_list',
+      'generate_shopping_list',
       'get_meal',
+      'get_recurring_items',
+      'get_shopping_list',
+      'get_week_plan',
+      'list_stores',
       'log_meal',
       'search_meals',
+      'set_plan_entry',
+      'set_product_preference',
       'suggest_meals',
       'update_meal',
     ]);
@@ -212,5 +220,83 @@ describe('serveur MCP', () => {
       voisinToken,
     );
     expect(JSON.stringify(payload)).toContain('introuvable');
+  });
+});
+
+describe('courses par le MCP', () => {
+  let storeId: string;
+
+  it('crée une enseigne et la retrouve par list_stores', async () => {
+    const { createStore } = await import('@/lib/domain/products');
+    storeId = (await createStore(session.householdId, { name: 'E.Leclerc Drive' })).id;
+
+    const { payload } = await rpc('tools/call', { name: 'list_stores', arguments: {} });
+    expect(toolText(payload)).toContain('E.Leclerc Drive');
+  });
+
+  it('planifie un repas puis relit la grille', async () => {
+    await rpc('tools/call', {
+      name: 'set_plan_entry',
+      arguments: { date: '2026-09-07', slot: 'soir', mealName: 'Curry de lentilles coco' },
+    });
+
+    const { payload } = await rpc('tools/call', {
+      name: 'get_week_plan',
+      arguments: { weekStart: '2026-09-07' },
+    });
+    const out = toolText(payload);
+    expect(out).toContain('2026-09-07');
+    expect(out).toContain('Curry de lentilles coco');
+    expect(out).toContain('vide');
+  });
+
+  it('génère la liste triée par rayon avec les lignes à mapper', async () => {
+    const { payload } = await rpc('tools/call', {
+      name: 'generate_shopping_list',
+      arguments: { fromDate: '2026-09-07', toDate: '2026-09-13', storeId },
+    });
+    const out = toolText(payload);
+    expect(out).toContain('À mapper');
+    expect(out).toContain('Lentilles corail');
+  });
+
+  it('mémorise un produit du drive, qui sort alors de la section à mapper', async () => {
+    await rpc('tools/call', {
+      name: 'set_product_preference',
+      arguments: {
+        ingredientName: 'Lentilles corail',
+        storeId,
+        label: 'Lentilles corail bio 500 g',
+        brand: 'Marque Repère',
+        format: '500 g',
+        productUrl: 'https://drive.example/p/1',
+        aisle: 'epicerie_salee',
+      },
+    });
+
+    const { payload } = await rpc('tools/call', {
+      name: 'generate_shopping_list',
+      arguments: { fromDate: '2026-09-07', toDate: '2026-09-13', storeId },
+    });
+    const out = toolText(payload);
+    expect(out).toContain('Lentilles corail bio 500 g');
+    expect(out).toContain('Marque Repère · 500 g');
+    expect(out).toContain('https://drive.example/p/1');
+    expect(out).toContain('Épicerie salée');
+  });
+
+  it('ajoute une ligne libre et la relit dans la liste courante', async () => {
+    await rpc('tools/call', {
+      name: 'add_to_shopping_list',
+      arguments: { items: ['papier toilette'] },
+    });
+
+    const { payload } = await rpc('tools/call', { name: 'get_shopping_list', arguments: {} });
+    expect(toolText(payload)).toContain('papier toilette');
+  });
+
+  it('renvoie un socle récurrent vide tant que rien n’y est déclaré', async () => {
+    const { payload } = await rpc('tools/call', { name: 'get_recurring_items', arguments: {} });
+    expect(toolText(payload)).toContain('Aucun socle récurrent');
   });
 });

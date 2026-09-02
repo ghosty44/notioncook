@@ -63,10 +63,12 @@ Livrés : `search_meals`, `get_meal`, `add_meal`, `update_meal`, `log_meal`,
 `createMcpHandler`, avec le foyer figé dedans : ne jamais lire le foyer depuis
 les arguments d'un outil.
 
-Restent à faire : `get_week_plan`, `set_plan_entry`,
+Livrés en phase 3 : `get_week_plan`, `set_plan_entry`,
 `generate_shopping_list`, `add_to_shopping_list`, `get_shopping_list`,
-`get_recurring_items`, `set_product_preference`, puis pour la boucle Cowork
-`get_store_rules`, `mark_list_ordered`, `reject_product`, `report_unavailable`.
+`get_recurring_items`, `set_product_preference`, `list_stores`.
+
+Restent à faire, pour la boucle Cowork de la phase 4 : `get_store_rules`,
+`mark_list_ordered`, `reject_product`, `report_unavailable`.
 
 Réponses en **texte structuré lisible, pas en JSON brut**, identifiants
 systématiquement inclus pour permettre les appels chaînés.

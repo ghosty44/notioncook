@@ -103,6 +103,28 @@ stockée, jamais le jeton lui-même.
 Les réponses sont du texte structuré, pas du JSON brut, et incluent toujours les
 identifiants pour permettre les appels chaînés.
 
+## Liste de courses
+
+La génération suit exactement la logique de la section 4.6 du spec :
+
+1. tous les `meal_ingredient` des repas planifiés sur la période
+2. moins ceux marqués « on en a toujours » (`is_pantry_staple`)
+3. regroupés par ingrédient, quantités sommées quand les unités sont compatibles
+4. plus le socle récurrent dont la fréquence est échue
+5. chaque ingrédient résolu vers le produit `is_preferred` de l'enseigne
+6. le tout trié dans l'ordre de parcours du magasin
+
+Les unités se convertissent entre elles dans une même dimension : 1 kg + 250 g
+donne 1,25 kg. Deux quantités écrites dans la même unité la gardent (40 cl +
+40 cl font 80 cl, pas 800 ml), parce que c'est dans cette unité que le drive
+vend le produit. Les unités incompatibles restent côte à côte (« 40 cl + 1
+boîte ») plutôt que d'être perdues, et une ligne sans quantité reste sur la
+liste : un oubli coûte plus cher qu'une imprécision.
+
+Les lignes sans produit du drive sont regroupées en tête, dans « à mapper ».
+Une fois la référence enregistrée depuis l'écran Produits ou par
+`set_product_preference`, elles n'y réapparaissent plus jamais.
+
 ## Modèle mental
 
 - **`meal.kind`** distingue `recipe`, `combo` et `leftover_base`. Sans ce champ,
