@@ -50,6 +50,14 @@ export function ShoppingList({
     });
   }
 
+  async function markOrdered() {
+    if (!list) return;
+    setPending(true);
+    await fetch(`/api/shopping-lists/${list.id}/ordered`, { method: 'POST' });
+    setPending(false);
+    router.refresh();
+  }
+
   async function add() {
     const items = addition
       .split(',')
@@ -195,6 +203,16 @@ export function ShoppingList({
           Ajouter
         </button>
       </div>
+
+      {list.status === 'ordered' ? (
+        <p className="text-sm text-muted">
+          Liste marquée commandée. Le créneau de retrait et le paiement restent à faire à la main.
+        </p>
+      ) : (
+        <button type="button" onClick={markOrdered} disabled={pending} className={buttonClass}>
+          Panier rempli, marquer commandée
+        </button>
+      )}
 
       <button type="button" onClick={generate} disabled={pending} className={ghostButtonClass}>
         Générer une nouvelle liste

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { aisleLabel, type Aisle } from '@/lib/domain/aisles';
@@ -113,6 +114,12 @@ export function ProductsManager({
         <p className="mt-1 text-sm text-muted">
           {stores[0].name} · {products.length} correspondances, {unmapped.length} à faire
         </p>
+        <Link
+          href="/preferences"
+          className="mt-2 inline-block text-sm underline underline-offset-4"
+        >
+          Règles de choix, marques préférées et évitements
+        </Link>
       </div>
 
       {mapping && (
