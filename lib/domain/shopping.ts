@@ -11,9 +11,15 @@ import {
   stores,
 } from '@/lib/db/schema';
 import { DomainError } from '@/lib/errors';
+import type { MarkListOrderedInput } from '@/lib/schemas/cowork';
 import type { AddToShoppingListInput, GenerateShoppingListInput } from '@/lib/schemas/shopping';
 import { aisleRank, type Aisle } from './aisles';
-import { defaultStore, ensureIngredient, preferredProductsFor } from './products';
+import {
+  defaultStore,
+  ensureIngredient,
+  listRejectedProducts,
+  preferredProductsFor,
+} from './products';
 import {
   aggregateShoppingList,
   formatQuantities,
@@ -214,6 +220,10 @@ export async function getShoppingList(householdId: string, listId?: string) {
     ? await db().select().from(stores).where(eq(stores.id, list.storeId)).limit(1)
     : [];
 
+  // Les refus voyagent avec la liste : Cowork les lit et ne repropose jamais
+  // un produit déjà écarté.
+  const rejected = list.storeId ? await listRejectedProducts(householdId, list.storeId) : [];
+
   const sorted = items.sort(
     (a, b) =>
       aisleRank(a.aisle as Aisle) - aisleRank(b.aisle as Aisle) ||
@@ -225,6 +235,7 @@ export async function getShoppingList(householdId: string, listId?: string) {
     store: store ?? null,
     items: sorted,
     unmapped: sorted.filter((item) => item.productId === null),
+    rejected,
   };
 }
 
@@ -364,3 +375,21 @@ export async function removeRecurringItem(householdId: string, id: string) {
 }
 
 export { ensureIngredient };
+
+/**
+ * Fin du run Cowork : le panier est rempli, la liste passe en commandée. Le
+ * créneau et le paiement restent manuels, c'est une décision produit.
+ */
+export async function markListOrdered(householdId: string, input: MarkListOrderedInput) {
+  const list = await getShoppingList(householdId, input.listId);
+  if (list.status === 'ordered') {
+    throw new DomainError('Cette liste est déjà marquée commandée', 409);
+  }
+
+  await db()
+    .update(shoppingLists)
+    .set({ status: 'ordered', orderedAt: new Date(), notes: input.notes ?? list.notes })
+    .where(eq(shoppingLists.id, list.id));
+
+  return getShoppingList(householdId, list.id);
+}

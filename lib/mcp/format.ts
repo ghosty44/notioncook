@@ -2,6 +2,7 @@ import { aisleLabel, type Aisle } from '@/lib/domain/aisles';
 import type { LibraryMeal } from '@/lib/domain/library';
 import type { PlanCell } from '@/lib/domain/plan';
 import type { ShoppingListView } from '@/lib/domain/shopping';
+import type { StoreContext } from '@/lib/domain/store-rules';
 import type { MealDetail } from '@/lib/domain/meals';
 import type { ScoredMeal } from '@/lib/domain/suggestions';
 
@@ -118,6 +119,16 @@ export function formatShoppingList(list: ShoppingListView): string {
     }
   }
 
+  if (list.rejected.length > 0) {
+    lines.push('', `Produits écartés, à ne jamais reproposer (${list.rejected.length}) :`);
+    for (const item of list.rejected) {
+      lines.push(
+        `- ${item.label}${item.ingredientName ? ` pour ${item.ingredientName}` : ''}` +
+          `${item.reason ? ` : ${item.reason}` : ''}`,
+      );
+    }
+  }
+
   let currentAisle: string | null = null;
   for (const item of list.items) {
     if (item.aisle !== currentAisle) {
@@ -162,4 +173,61 @@ export function formatRecurringItems(
       )
       .join('\n')
   );
+}
+
+/**
+ * Contexte lu par Cowork au début d'une session : règles ordonnées, marques
+ * distributeur, préférences, évitements, et les limites à respecter. Les
+ * évitements bloquants sont mis en tête parce qu'ils ne se négocient pas.
+ */
+export function formatStoreContext(context: StoreContext): string {
+  const { store, rules, brandPreferences, avoidances, constraints, limits } = context;
+  const lines = [`Enseigne : ${store.name} [${store.id}]`];
+
+  if (store.baseUrl) lines.push(`URL : ${store.baseUrl}`);
+  if (store.address) lines.push(`Adresse : ${store.address}`);
+  if (store.pickupHours) lines.push(`Retrait : ${store.pickupHours}`);
+  if (store.houseBrands.length) {
+    lines.push(`Marques distributeur : ${store.houseBrands.join(', ')}`);
+  }
+
+  const bloquants = avoidances.filter((a) => a.isHard);
+  if (bloquants.length) {
+    lines.push('', 'À NE JAMAIS ACHETER, sans exception :');
+    for (const item of bloquants) {
+      lines.push(`- ${item.value} (${item.scope}, ${item.reason})`);
+    }
+  }
+
+  lines.push('', 'Règles de choix produit, par ordre de priorité :');
+  if (rules.length === 0) {
+    lines.push('- aucune règle enregistrée, applique le bon sens et signale les cas ambigus');
+  } else {
+    for (const rule of rules) lines.push(`${rule.priority}. ${rule.rule}`);
+  }
+
+  if (brandPreferences.length) {
+    lines.push('', 'Marques préférées :');
+    for (const preference of brandPreferences) {
+      const portee = preference.ingredientName
+        ? `pour ${preference.ingredientName}`
+        : preference.aisle
+          ? `pour tout le rayon ${aisleLabel(preference.aisle as Aisle)}`
+          : 'partout';
+      lines.push(`- ${preference.brand} ${portee}`);
+    }
+  }
+
+  const souples = avoidances.filter((a) => !a.isHard);
+  if (souples.length) {
+    lines.push('', 'À éviter si possible :');
+    for (const item of souples) lines.push(`- ${item.value} (${item.reason})`);
+  }
+
+  if (constraints) lines.push('', 'Contraintes du foyer :', constraints);
+
+  lines.push('', 'Limites du run :');
+  for (const limit of limits) lines.push(`- ${limit}`);
+
+  return lines.join('\n');
 }

@@ -1,7 +1,8 @@
 import { and, asc, eq, inArray } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { ingredients, mealIngredients, products, stores } from '@/lib/db/schema';
+import { ingredients, mealIngredients, products, rejectedProducts, stores } from '@/lib/db/schema';
 import { DomainError } from '@/lib/errors';
+import type { RejectProductInput, ReportUnavailableInput } from '@/lib/schemas/cowork';
 import type { SetProductPreferenceInput } from '@/lib/schemas/shopping';
 import { slugify } from './text';
 
@@ -220,4 +221,82 @@ export async function listUnmappedIngredients(householdId: string, storeId: stri
   );
 
   return used.filter((row) => !mapped.has(row.id));
+}
+
+/**
+ * Enregistre une substitution refusée. Le produit écarté est exposé par
+ * get_shopping_list : Cowork ne doit jamais le reproposer. S'il était le choix
+ * par défaut, il cesse de l'être.
+ */
+export async function rejectProduct(householdId: string, input: RejectProductInput) {
+  await requireStore(householdId, input.storeId);
+  const ingredient = await ensureIngredient(householdId, input.ingredientName);
+
+  const [rejected] = await db()
+    .insert(rejectedProducts)
+    .values({
+      householdId,
+      ingredientId: ingredient.id,
+      storeId: input.storeId,
+      label: input.label,
+      reason: input.reason,
+    })
+    .returning();
+
+  await db()
+    .update(products)
+    .set({ isPreferred: false })
+    .where(
+      and(
+        eq(products.householdId, householdId),
+        eq(products.storeId, input.storeId),
+        eq(products.ingredientId, ingredient.id),
+        eq(products.label, input.label),
+      ),
+    );
+
+  return { rejected, ingredient };
+}
+
+export async function listRejectedProducts(householdId: string, storeId: string) {
+  return db()
+    .select({
+      id: rejectedProducts.id,
+      label: rejectedProducts.label,
+      reason: rejectedProducts.reason,
+      ingredientName: ingredients.name,
+    })
+    .from(rejectedProducts)
+    .leftJoin(ingredients, eq(ingredients.id, rejectedProducts.ingredientId))
+    .where(
+      and(eq(rejectedProducts.householdId, householdId), eq(rejectedProducts.storeId, storeId)),
+    );
+}
+
+/**
+ * Rupture signalée : le produit est marqué indisponible et perd son statut de
+ * choix par défaut, ce qui force un nouvel arbitrage à la prochaine liste
+ * plutôt qu'une substitution silencieuse.
+ */
+export async function reportUnavailable(householdId: string, input: ReportUnavailableInput) {
+  const [product] = await db()
+    .select()
+    .from(products)
+    .where(and(eq(products.householdId, householdId), eq(products.id, input.productId)))
+    .limit(1);
+
+  if (!product) throw new DomainError('Produit introuvable', 404);
+
+  const [updated] = await db()
+    .update(products)
+    .set({
+      isUnavailable: true,
+      isPreferred: false,
+      note: input.note ?? product.note,
+      lastSeenAt: new Date(),
+    })
+    .where(eq(products.id, product.id))
+    .returning();
+
+  return updated;
 }

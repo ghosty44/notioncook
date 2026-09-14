@@ -17,6 +17,23 @@ export const getShoppingListInput = z.object({
   listId: z.string().min(1).optional(),
 });
 
+export const aisleEnum = z.enum([
+  'fruits_legumes',
+  'boucherie',
+  'poissonnerie',
+  'cremerie',
+  'charcuterie_traiteur',
+  'epicerie_salee',
+  'epicerie_sucree',
+  'boulangerie',
+  'surgeles',
+  'boissons',
+  'bebe',
+  'entretien',
+  'hygiene',
+  'autre',
+]);
+
 export const setProductPreferenceInput = z.object({
   ingredientName: z.string().trim().min(1).max(120),
   storeId: z.string().min(1),
@@ -26,24 +43,7 @@ export const setProductPreferenceInput = z.object({
   externalId: z.string().trim().max(80).optional(),
   productUrl: z.url().optional(),
   price: z.number().nonnegative().optional(),
-  aisle: z
-    .enum([
-      'fruits_legumes',
-      'boucherie',
-      'poissonnerie',
-      'cremerie',
-      'charcuterie_traiteur',
-      'epicerie_salee',
-      'epicerie_sucree',
-      'boulangerie',
-      'surgeles',
-      'boissons',
-      'bebe',
-      'entretien',
-      'hygiene',
-      'autre',
-    ])
-    .optional(),
+  aisle: aisleEnum.optional(),
   note: z.string().trim().max(300).optional(),
 });
 

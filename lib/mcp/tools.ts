@@ -2,13 +2,20 @@ import type { McpServer } from '@modelcontextprotocol/server';
 import { z } from 'zod';
 import { createMeal, getMeal, listMeals, logMeal, updateMeal } from '@/lib/domain/meals';
 import { getWeekPlan, setPlanEntry } from '@/lib/domain/plan';
-import { listStores, setProductPreference } from '@/lib/domain/products';
+import {
+  listStores,
+  rejectProduct,
+  reportUnavailable,
+  setProductPreference,
+} from '@/lib/domain/products';
 import {
   addToShoppingList,
   generateShoppingList,
   getRecurringItems,
   getShoppingList,
+  markListOrdered,
 } from '@/lib/domain/shopping';
+import { getStoreContext, setAvoidance, setBrandPreference } from '@/lib/domain/store-rules';
 import { suggestMeals } from '@/lib/domain/suggestions';
 import {
   createMealInput,
@@ -16,6 +23,14 @@ import {
   searchMealsInput,
   updateMealInput,
 } from '@/lib/schemas/meals';
+import {
+  getStoreRulesInput,
+  markListOrderedInput,
+  rejectProductInput,
+  reportUnavailableInput,
+  setAvoidanceInput,
+  setBrandPreferenceInput,
+} from '@/lib/schemas/cowork';
 import { getWeekPlanInput, setPlanEntryInput } from '@/lib/schemas/plan';
 import {
   addToShoppingListInput,
@@ -29,6 +44,7 @@ import {
   formatMealLine,
   formatRecurringItems,
   formatShoppingList,
+  formatStoreContext,
   formatSuggestion,
   formatWeekPlan,
   text,
@@ -268,6 +284,110 @@ export function registerTools(server: McpServer, householdId: string): void {
             (store) => `- ${store.name} [${store.id}]${store.baseUrl ? ` ${store.baseUrl}` : ''}`,
           )
           .join('\n'),
+      );
+    },
+  );
+
+  server.registerTool(
+    'get_store_rules',
+    {
+      title: "Règles de choix produit de l'enseigne",
+      description:
+        'À lire au début de chaque session de remplissage de panier. Renvoie les règles de choix ' +
+        'ordonnées, les marques distributeur, les marques préférées, les évitements (dont les ' +
+        'bloquants, jamais contournables), les informations du magasin et les limites du run.',
+      inputSchema: getStoreRulesInput,
+    },
+    async ({ storeId }) => text(formatStoreContext(await getStoreContext(householdId, storeId))),
+  );
+
+  server.registerTool(
+    'mark_list_ordered',
+    {
+      title: 'Marquer la liste comme commandée',
+      description:
+        'À appeler quand le panier est rempli. La liste passe en commandée. Le créneau de ' +
+        "retrait et le paiement restent manuels : ce n'est pas une limite technique mais une " +
+        'décision produit, ne cherche pas à les automatiser.',
+      inputSchema: markListOrderedInput,
+    },
+    async (input) => {
+      const list = await markListOrdered(householdId, input);
+      return text(
+        `Liste ${list.id} marquée commandée (${list.items.length} lignes). ` +
+          'Le créneau et le paiement restent à faire par un humain.',
+      );
+    },
+  );
+
+  server.registerTool(
+    'reject_product',
+    {
+      title: 'Écarter un produit',
+      description:
+        'Enregistre un produit écarté pour un ingrédient. Il ne sera plus jamais reproposé et ' +
+        "apparaît dans get_shopping_list. S'il était le choix par défaut, il cesse de l'être.",
+      inputSchema: rejectProductInput,
+    },
+    async (input) => {
+      const { rejected, ingredient } = await rejectProduct(householdId, input);
+      return text(
+        `${rejected.label} écarté pour ${ingredient.name} : ${rejected.reason}. ` +
+          'Il ne sera plus proposé.',
+      );
+    },
+  );
+
+  server.registerTool(
+    'report_unavailable',
+    {
+      title: 'Signaler une rupture',
+      description:
+        'Marque un produit indisponible et lui retire son statut de choix par défaut, ce qui ' +
+        'force un nouvel arbitrage. Ne jamais substituer en silence : signaler est la bonne ' +
+        'réponse à une rupture.',
+      inputSchema: reportUnavailableInput,
+    },
+    async (input) => {
+      const product = await reportUnavailable(householdId, input);
+      return text(
+        `${product.label} [${product.id}] marqué indisponible. ` +
+          "Il n'est plus le choix par défaut : un nouveau produit devra être retenu.",
+      );
+    },
+  );
+
+  server.registerTool(
+    'set_brand_preference',
+    {
+      title: 'Enregistrer une marque préférée',
+      description:
+        'Préférence large (tout un rayon) ou ciblée (un ingrédient précis). La plus spécifique ' +
+        "l'emporte. Sert à arbitrer entre deux produits équivalents.",
+      inputSchema: setBrandPreferenceInput,
+    },
+    async (input) => {
+      const { preference, ingredient } = await setBrandPreference(householdId, input);
+      const portee = ingredient ? `pour ${ingredient.name}` : `pour le rayon ${input.aisle}`;
+      return text(`Marque préférée enregistrée : ${preference.brand} ${portee}.`);
+    },
+  );
+
+  server.registerTool(
+    'set_avoidance',
+    {
+      title: 'Enregistrer un évitement',
+      description:
+        "Marque, ingrédient ou produit à éviter. isHard à vrai rend l'évitement bloquant : il ne " +
+        'doit jamais être contourné, typiquement une allergie. Une raison « allergie » le rend ' +
+        "bloquant d'office.",
+      inputSchema: setAvoidanceInput,
+    },
+    async (input) => {
+      const avoidance = await setAvoidance(householdId, input);
+      return text(
+        `${avoidance.value} à éviter (${avoidance.scope}, ${avoidance.reason})` +
+          `${avoidance.isHard ? ', bloquant : ne jamais acheter' : ''}.`,
       );
     },
   );
