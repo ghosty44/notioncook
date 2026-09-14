@@ -1,6 +1,12 @@
 import type { McpServer } from '@modelcontextprotocol/server';
 import { z } from 'zod';
 import { createMeal, getMeal, listMeals, logMeal, updateMeal } from '@/lib/domain/meals';
+import {
+  getImportBatch,
+  importProducts,
+  resolveCandidates,
+  suggestRecurringItems,
+} from '@/lib/domain/import';
 import { getWeekPlan, setPlanEntry } from '@/lib/domain/plan';
 import {
   listStores,
@@ -31,6 +37,12 @@ import {
   setAvoidanceInput,
   setBrandPreferenceInput,
 } from '@/lib/schemas/cowork';
+import {
+  getImportBatchInput,
+  importProductsInput,
+  resolveCandidatesInput,
+  suggestRecurringItemsInput,
+} from '@/lib/schemas/import';
 import { getWeekPlanInput, setPlanEntryInput } from '@/lib/schemas/plan';
 import {
   addToShoppingListInput,
@@ -44,6 +56,7 @@ import {
   formatMealLine,
   formatRecurringItems,
   formatShoppingList,
+  formatImportReport,
   formatStoreContext,
   formatSuggestion,
   formatWeekPlan,
@@ -388,6 +401,89 @@ export function registerTools(server: McpServer, householdId: string): void {
       return text(
         `${avoidance.value} à éviter (${avoidance.scope}, ${avoidance.reason})` +
           `${avoidance.isHard ? ', bloquant : ne jamais acheter' : ''}.`,
+      );
+    },
+  );
+
+  server.registerTool(
+    'import_products',
+    {
+      title: 'Importer un historique de drive',
+      description:
+        "Déverse des lignes d'historique, de ticket ou de liste pour amorcer la base. Rien n'est " +
+        'écrit dans les produits : tout passe par une table de candidats. Lance TOUJOURS un ' +
+        'premier appel avec dryRun à vrai, présente le rapport, et n’écris qu’après accord ' +
+        "explicite. Les candidats sûrs vus au moins trois fois sont promus d'office, les autres " +
+        "attendent l'écran de validation.",
+      inputSchema: importProductsInput,
+    },
+    async (input) => text(formatImportReport(await importProducts(householdId, input))),
+  );
+
+  server.registerTool(
+    'get_import_batch',
+    {
+      title: "Candidats d'un lot d'import",
+      description: 'Les candidats du lot avec leur statut, triés par nombre d’occurrences.',
+      inputSchema: getImportBatchInput,
+    },
+    async ({ batchId }) => {
+      const rows = await getImportBatch(householdId, batchId);
+      return text(
+        `${rows.length} candidats :\n` +
+          rows
+            .map(
+              (row) =>
+                `- ${row.rawLabel} [${row.id}] · ${row.occurrences}× · ${row.confidence} · ${row.status}` +
+                `${row.guessedIngredientName ? ` · deviné : ${row.guessedIngredientName}` : ''}`,
+            )
+            .join('\n'),
+      );
+    },
+  );
+
+  server.registerTool(
+    'resolve_candidates',
+    {
+      title: 'Valider ou rejeter des candidats',
+      description:
+        'Promeut les candidats en produits, ou les écarte. ingredientName permet de les ' +
+        'rattacher à un autre ingrédient que celui deviné. Le plus fréquent devient le choix par ' +
+        'défaut, les autres restent comme alternatives en cas de rupture.',
+      inputSchema: resolveCandidatesInput,
+    },
+    async (input) => {
+      const { accepted, rejected } = await resolveCandidates(householdId, input);
+      return text(
+        accepted > 0
+          ? `${accepted} candidats promus en produits.`
+          : `${rejected} candidats écartés.`,
+      );
+    },
+  );
+
+  server.registerTool(
+    'suggest_recurring_items',
+    {
+      title: 'Déduire le socle récurrent',
+      description:
+        "Repère ce qui revient régulièrement dans l'historique importé et propose une fréquence " +
+        "en semaines. C'est ce qui reconstitue les 70 % du panier qui ne bougent jamais.",
+      inputSchema: suggestRecurringItemsInput,
+    },
+    async (input) => {
+      const rows = await suggestRecurringItems(householdId, input);
+      if (rows.length === 0) {
+        return text('Rien de suffisamment régulier dans ce qui a été importé.');
+      }
+      return text(
+        `${rows.length} candidats au socle récurrent :\n` +
+          rows
+            .map(
+              (row) =>
+                `- ${row.label} [${row.candidateId}] · ${row.occurrences} achats · environ toutes les ${row.frequencyWeeks} semaine(s)`,
+            )
+            .join('\n'),
       );
     },
   );

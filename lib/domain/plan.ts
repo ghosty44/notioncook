@@ -47,10 +47,7 @@ export async function getWeekPlan(householdId: string, weekStart?: string): Prom
     .from(planEntries)
     .leftJoin(meals, eq(meals.id, planEntries.mealId))
     .where(
-      and(
-        eq(planEntries.householdId, householdId),
-        between(planEntries.date, days[0], days[6]),
-      ),
+      and(eq(planEntries.householdId, householdId), between(planEntries.date, days[0], days[6])),
     );
 
   const filled = new Map(rows.map((row) => [`${row.date}:${row.slot}`, row]));

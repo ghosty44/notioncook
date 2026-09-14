@@ -1,4 +1,5 @@
 import { aisleLabel, type Aisle } from '@/lib/domain/aisles';
+import type { ImportReport } from '@/lib/domain/import';
 import type { LibraryMeal } from '@/lib/domain/library';
 import type { PlanCell } from '@/lib/domain/plan';
 import type { ShoppingListView } from '@/lib/domain/shopping';
@@ -228,6 +229,38 @@ export function formatStoreContext(context: StoreContext): string {
 
   lines.push('', 'Limites du run :');
   for (const limit of limits) lines.push(`- ${limit}`);
+
+  return lines.join('\n');
+}
+
+/**
+ * Rapport d'import. En dry run, il dit exactement ce qui serait écrit : c'est
+ * sur cette base que l'utilisateur donne, ou non, son accord.
+ */
+export function formatImportReport(report: ImportReport): string {
+  const lines = [
+    report.dryRun
+      ? `Import à blanc, rien n'a été écrit. Lot ${report.batchId}.`
+      : `Import effectué. Lot ${report.batchId}.`,
+    '',
+    `${report.received} lignes reçues`,
+    `${report.created} nouveaux candidats, ${report.merged} fusionnés avec un candidat existant`,
+    `${report.alreadyMapped} correspondent à un ingrédient déjà mappé chez cette enseigne`,
+    `${report.autoPromoted} promus automatiquement (sûrs et vus au moins trois fois)`,
+    `Confiance : ${report.byConfidence.high} haute, ${report.byConfidence.medium} moyenne, ${report.byConfidence.low} faible`,
+  ];
+
+  if (report.conflicts.length > 0) {
+    lines.push('', `Conflits à trancher (${report.conflicts.length}) :`);
+    for (const conflict of report.conflicts.slice(0, 20)) lines.push(`- ${conflict}`);
+  }
+
+  if (report.dryRun) {
+    lines.push(
+      '',
+      "Relance avec dryRun à faux pour écrire, une fois ce rapport validé par l'utilisateur.",
+    );
+  }
 
   return lines.join('\n');
 }

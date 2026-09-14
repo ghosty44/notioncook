@@ -36,7 +36,7 @@ export async function defaultStore(householdId: string) {
   return store ?? null;
 }
 
-async function requireStore(householdId: string, storeId: string) {
+export async function requireStore(householdId: string, storeId: string) {
   const [store] = await db()
     .select()
     .from(stores)
