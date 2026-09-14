@@ -128,29 +128,33 @@ describe('serveur MCP', () => {
     expect(status).toBe(401);
   });
 
-  it('expose les outils des phases 2 à 4', async () => {
+  it('expose les vingt-quatre outils des phases 2 à 4', async () => {
     const { payload } = await rpc('tools/list', {});
     const names = payload.result.tools.map((t: { name: string }) => t.name).sort();
     expect(names).toEqual([
       'add_meal',
       'add_to_shopping_list',
       'generate_shopping_list',
+      'get_import_batch',
       'get_meal',
       'get_recurring_items',
       'get_shopping_list',
       'get_store_rules',
       'get_week_plan',
+      'import_products',
       'list_stores',
       'log_meal',
       'mark_list_ordered',
       'reject_product',
       'report_unavailable',
+      'resolve_candidates',
       'search_meals',
       'set_avoidance',
       'set_brand_preference',
       'set_plan_entry',
       'set_product_preference',
       'suggest_meals',
+      'suggest_recurring_items',
       'update_meal',
     ]);
   });

@@ -16,8 +16,8 @@ Cowork ; l'app est la mémoire persistante dont Cowork manque.
 | 3     | Ingrédients, produits, récurrents, planning, liste triée par rayon    | à venir    |
 | 4     | Mapping produits et boucle Cowork                                     | à venir    |
 
-Le schéma de base couvre déjà les quatre phases : les tables des phases 2 à 4
-existent, elles ne sont simplement pas encore exposées.
+Les quatre phases du spec sont livrées. L'app attend maintenant un usage réel
+pour se remplir.
 
 ## Stack
 
@@ -124,6 +124,44 @@ liste : un oubli coûte plus cher qu'une imprécision.
 Les lignes sans produit du drive sont regroupées en tête, dans « à mapper ».
 Une fois la référence enregistrée depuis l'écran Produits ou par
 `set_product_preference`, elles n'y réapparaissent plus jamais.
+
+## Boucle Cowork
+
+L'app ne navigue jamais sur le drive : c'est Claude Cowork qui remplit le
+panier. L'app est la mémoire qui lui manque.
+
+1. `get_store_rules` au début de la session : règles de choix ordonnées, marques
+   distributeur, marques préférées, évitements et contraintes du foyer.
+2. `get_shopping_list` : chaque ligne mappée porte le libellé exact, la marque,
+   le format et l'URL. Aucune décision à prendre.
+3. Pour une ligne non mappée, arbitrer selon les règles puis
+   `set_product_preference` : la table se nourrit d'elle-même à chaque course.
+4. `reject_product` pour un produit écarté, `report_unavailable` pour une
+   rupture. **Jamais de substitution silencieuse.**
+5. `mark_list_ordered` quand le panier est plein.
+
+Trois garde-fous sont portés par le code et pas seulement par la documentation :
+un évitement dont la raison est « allergie » devient bloquant d'office et sort
+en tête du contexte ; un produit écarté perd son statut de choix par défaut et
+voyage avec la liste ; une rupture signalée renvoie la ligne à mapper plutôt que
+d'autoriser un remplacement tacite.
+
+Le créneau de retrait et le paiement restent manuels. C'est une décision
+produit, rappelée dans la sortie de `get_store_rules`.
+
+## Amorçage de la base
+
+`import_products` déverse un historique de drive, un ticket ou une liste. Rien
+n'est jamais écrit directement dans les produits : tout passe par une table de
+candidats, et `dryRun` est obligatoire dans le premier appel. Le rapport dit ce
+qui serait créé, fusionné, déjà mappé et promu ; l'écriture n'a lieu qu'ensuite.
+
+La déduplication se fait sur l'identifiant du drive s'il existe, sinon sur le
+libellé normalisé. Une fusion n'écrase rien : le libellé retenu reste celui vu
+en premier, et seuls les champs vides se complètent. Les candidats sûrs vus au
+moins trois fois sont promus sans validation ; les autres attendent dans
+l'écran Validation, triés par nombre d'achats pour que le plus rentable à
+trancher arrive en premier.
 
 ## Modèle mental
 

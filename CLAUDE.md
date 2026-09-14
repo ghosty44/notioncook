@@ -67,8 +67,16 @@ Livrés en phase 3 : `get_week_plan`, `set_plan_entry`,
 `generate_shopping_list`, `add_to_shopping_list`, `get_shopping_list`,
 `get_recurring_items`, `set_product_preference`, `list_stores`.
 
-Restent à faire, pour la boucle Cowork de la phase 4 : `get_store_rules`,
-`mark_list_ordered`, `reject_product`, `report_unavailable`.
+Livrés en phase 4 : `get_store_rules`, `mark_list_ordered`, `reject_product`,
+`report_unavailable`, `set_brand_preference`, `set_avoidance`,
+`import_products`, `get_import_batch`, `resolve_candidates`,
+`suggest_recurring_items`. Vingt-quatre outils au total.
+
+Trois invariants de la section 9 sont portés par le code : une raison
+« allergie » rend l'évitement bloquant d'office, un produit écarté perd son
+statut de choix par défaut, une rupture signalée renvoie la ligne à mapper.
+Ne jamais les contourner. `import_products` n'écrit rien tant que `dryRun` vaut
+vrai : c'est le garde-fou contre un historique mal parsé.
 
 Réponses en **texte structuré lisible, pas en JSON brut**, identifiants
 systématiquement inclus pour permettre les appels chaînés.
