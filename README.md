@@ -54,7 +54,16 @@ sur un Postgres embarqué. Seul `npm run dev` a réellement besoin d'une base.
    (`openssl rand -base64 32`), coché sur Production, Preview et Development.
    Sans elle, aucune session ne peut être signée.
 4. Appliquer les migrations une fois, depuis ta machine, avec l'URL de la base
-   dans `.env.local` : `npm run db:migrate`.
+   dans `.env.local` :
+
+   ```bash
+   npm run db:migrate
+   ```
+
+   L'URL peut aussi être passée en ligne, sans fichier :
+   `DATABASE_URL="postgres://…" npm run db:migrate`. Prends l'URL **pooled** du
+   dashboard Neon.
+
 5. Redéployer (ou pousser un commit) pour que les variables soient prises en
    compte : elles ne sont lues qu'au démarrage d'un nouveau déploiement.
 
