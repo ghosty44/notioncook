@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { households, users } from '@/lib/db/schema';
 import { canonicalInviteCode, generateInviteCode } from '@/lib/auth/codes';
@@ -47,11 +47,39 @@ async function findUser(householdId: string, email: string) {
   return rows.find((u) => u.email.toLowerCase() === email.toLowerCase());
 }
 
+/**
+ * Projection explicite : l'empreinte HMAC du jeton MCP ne doit jamais quitter
+ * la base, sans quoi la promesse de mcp-token.ts tombe. L'appelant n'a besoin
+ * que de savoir si un jeton existe.
+ */
 export async function getHousehold(householdId: string) {
   const [household] = await db()
-    .select()
+    .select({
+      id: households.id,
+      name: households.name,
+      inviteCode: households.inviteCode,
+      constraints: households.constraints,
+      createdAt: households.createdAt,
+      hasMcpToken: sql<boolean>`${households.mcpTokenHash} is not null`,
+      mcpTokenCreatedAt: households.mcpTokenCreatedAt,
+    })
     .from(households)
     .where(eq(households.id, householdId))
     .limit(1);
   return household ?? null;
+}
+
+/**
+ * Un code fuite par une capture d'écran ou un ancien colocataire reste valable
+ * pour toujours sans cela : la rotation est la seule façon de le révoquer.
+ */
+export async function rotateInviteCode(householdId: string) {
+  const [household] = await db()
+    .update(households)
+    .set({ inviteCode: generateInviteCode() })
+    .where(eq(households.id, householdId))
+    .returning({ id: households.id, inviteCode: households.inviteCode });
+
+  if (!household) throw new DomainError('Foyer introuvable', 404);
+  return household;
 }

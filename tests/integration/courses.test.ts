@@ -187,7 +187,9 @@ describe('liste de courses', () => {
       items: ['lentilles corail', 'papier toilette'],
     });
 
-    const resolue = after.items.find((i) => i.label === 'Lentilles corail bio 500 g' && i.source === 'manual');
+    const resolue = after.items.find(
+      (i) => i.label === 'Lentilles corail bio 500 g' && i.source === 'manual',
+    );
     expect(resolue?.productId).not.toBeNull();
     expect(after.items.some((i) => i.label === 'papier toilette')).toBe(true);
   });

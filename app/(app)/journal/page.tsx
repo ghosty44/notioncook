@@ -16,7 +16,7 @@ export default async function JournalPage() {
     <Journal
       logs={logs}
       inviteCode={household?.inviteCode ?? null}
-      hasMcpToken={Boolean(household?.mcpTokenHash)}
+      hasMcpToken={Boolean(household?.hasMcpToken)}
     />
   );
 }

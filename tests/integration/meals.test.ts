@@ -1,6 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createTestDatabase } from './harness';
-import { createHousehold, getHousehold, joinHousehold } from '@/lib/domain/households';
+import {
+  createHousehold,
+  getHousehold,
+  joinHousehold,
+  rotateInviteCode,
+} from '@/lib/domain/households';
 import { DomainError } from '@/lib/errors';
 import {
   createMeal,
@@ -48,6 +53,23 @@ describe('foyer', () => {
     const messy = household!.inviteCode.toLowerCase().split('').join('-');
     const again = await joinHousehold({ code: messy, name: 'Alex', email: 'alex@exemple.fr' });
     expect(again.householdId).toBe(session.householdId);
+  });
+
+  it('invalide immédiatement l’ancien code après rotation', async () => {
+    const avant = (await getHousehold(session.householdId))!.inviteCode;
+    const apres = (await rotateInviteCode(session.householdId)).inviteCode;
+
+    expect(apres).not.toBe(avant);
+    await expect(
+      joinHousehold({ code: avant, name: 'Intrus', email: 'intrus@exemple.fr' }),
+    ).rejects.toBeInstanceOf(DomainError);
+
+    const rejoint = await joinHousehold({
+      code: apres,
+      name: 'Alex',
+      email: 'alex@exemple.fr',
+    });
+    expect(rejoint.householdId).toBe(session.householdId);
   });
 
   it('refuse un code inconnu', async () => {

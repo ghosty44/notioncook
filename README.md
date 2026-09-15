@@ -181,3 +181,10 @@ Pas de mot de passe et pas de magic link : le foyer possède un code
 d'invitation, et le partager suffit à rejoindre la même base. Le spec laissait
 ce choix ouvert ; l'option retenue évite un service d'envoi d'email, donc une
 dépendance tierce. Le code est visible dans l'onglet Journal.
+
+**Ce code est le seul secret qui protège les données du foyer.** Il fait dix
+caractères tirés d'un alphabet de 31 symboles, soit une cinquantaine de bits :
+le deviner en ligne n'est pas envisageable. En revanche il circule à l'oral et
+par capture d'écran, alors le bouton **Changer le code** de l'onglet Journal le
+fait tourner et invalide l'ancien immédiatement. À utiliser dès qu'un doute
+existe sur sa diffusion.

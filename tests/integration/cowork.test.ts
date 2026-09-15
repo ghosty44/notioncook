@@ -57,9 +57,21 @@ afterAll(async () => {
 
 describe('contexte de magasin', () => {
   it('rend les règles dans leur ordre de priorité', async () => {
-    await setStoreRule(session.householdId, { storeId, rule: 'Respecter la marque demandée', priority: 0 });
-    await setStoreRule(session.householdId, { storeId, rule: 'Sinon marque distributeur', priority: 1 });
-    await setStoreRule(session.householdId, { storeId, rule: 'Départager au prix au kilo', priority: 2 });
+    await setStoreRule(session.householdId, {
+      storeId,
+      rule: 'Respecter la marque demandée',
+      priority: 0,
+    });
+    await setStoreRule(session.householdId, {
+      storeId,
+      rule: 'Sinon marque distributeur',
+      priority: 1,
+    });
+    await setStoreRule(session.householdId, {
+      storeId,
+      rule: 'Départager au prix au kilo',
+      priority: 2,
+    });
 
     const context = await getStoreContext(session.householdId);
     expect(context.rules.map((rule) => rule.rule)).toEqual([
@@ -114,12 +126,27 @@ describe('contexte de magasin', () => {
       storeId,
       ingredientName: 'Beurre demi-sel',
     });
-    await setHouseholdConstraints(session.householdId, 'Textures lisses pour la petite. Budget 120 € max.');
+    await setHouseholdConstraints(
+      session.householdId,
+      'Textures lisses pour la petite. Budget 120 € max.',
+    );
 
     const rendu = formatStoreContext(await getStoreContext(session.householdId));
     expect(rendu).toContain('Marque Repère pour tout le rayon Crèmerie');
     expect(rendu).toContain('Bordier pour Beurre demi-sel');
     expect(rendu).toContain('Budget 120 € max.');
+  });
+
+  it("refuse d'attacher une préférence à l'enseigne d'un autre foyer", async () => {
+    const voisins = await createHousehold({
+      householdName: 'Voisins bis',
+      name: 'V',
+      email: 'v@exemple.fr',
+    });
+
+    await expect(
+      setBrandPreference(voisins.householdId, { brand: 'X', storeId, aisle: 'cremerie' }),
+    ).rejects.toBeInstanceOf(DomainError);
   });
 
   it('refuse un contexte quand le foyer n’a aucune enseigne', async () => {
@@ -199,9 +226,9 @@ describe('boucle de remplissage', () => {
     expect(ordered.orderedAt).not.toBeNull();
     expect(ordered.notes).toBe('Retrait samedi matin');
 
-    await expect(
-      markListOrdered(session.householdId, { listId: list.id }),
-    ).rejects.toBeInstanceOf(DomainError);
+    await expect(markListOrdered(session.householdId, { listId: list.id })).rejects.toBeInstanceOf(
+      DomainError,
+    );
   });
 
   it('isole refus et ruptures entre foyers', async () => {

@@ -95,11 +95,28 @@ describe('jeton de foyer', () => {
   });
 
   it('ne stocke pas le jeton en clair', async () => {
+    // Lecture directe de la colonne : la projection publique ne l'expose plus.
+    const { db } = await import('@/lib/db');
+    const { households } = await import('@/lib/db/schema');
+    const { eq } = await import('drizzle-orm');
+
+    const [row] = await db()
+      .select({ hash: households.mcpTokenHash })
+      .from(households)
+      .where(eq(households.id, session.householdId))
+      .limit(1);
+
+    expect(row.hash).toBeTruthy();
+    expect(row.hash).not.toBe(token);
+    expect(row.hash).not.toContain(token.slice(6));
+  });
+
+  it("n'expose jamais l'empreinte du jeton par la projection publique", async () => {
     const { getHousehold } = await import('@/lib/domain/households');
     const household = await getHousehold(session.householdId);
-    expect(household!.mcpTokenHash).toBeTruthy();
-    expect(household!.mcpTokenHash).not.toBe(token);
-    expect(household!.mcpTokenHash).not.toContain(token.slice(6));
+
+    expect(household!.hasMcpToken).toBe(true);
+    expect(JSON.stringify(household)).not.toContain('TokenHash');
   });
 
   it('rejette un jeton inventé, et le jeton révoqué', async () => {

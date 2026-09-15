@@ -1,6 +1,8 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { formatInviteCode } from '@/lib/auth/codes';
 import { buttonClass, Card, ghostButtonClass } from './ui';
 
 export function HouseholdCard({
@@ -10,9 +12,18 @@ export function HouseholdCard({
   inviteCode: string | null;
   hasMcpToken: boolean;
 }) {
+  const router = useRouter();
   const [token, setToken] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [issued, setIssued] = useState(hasMcpToken);
+  const [rotating, setRotating] = useState(false);
+
+  async function rotate() {
+    setRotating(true);
+    await fetch('/api/household/invite-code', { method: 'POST' });
+    setRotating(false);
+    router.refresh();
+  }
 
   async function issue() {
     setPending(true);
@@ -29,9 +40,23 @@ export function HouseholdCard({
     <div className="flex flex-col gap-3">
       <Card>
         <h2 className="text-sm font-semibold text-muted">Code du foyer</h2>
-        <p className="mt-1 text-xl font-bold tracking-[0.3em]">{inviteCode ?? '—'}</p>
+        <p className="mt-1 text-xl font-bold tracking-[0.2em]">
+          {inviteCode ? formatInviteCode(inviteCode) : '—'}
+        </p>
         <p className="mt-2 text-sm text-muted">
-          À donner à l&apos;autre adulte du foyer pour qu&apos;il rejoigne la même base.
+          À donner à l&apos;autre adulte du foyer pour qu&apos;il rejoigne la même base. C&apos;est
+          le seul secret qui protège vos données : ne le diffusez pas au-delà de la maison.
+        </p>
+        <button
+          type="button"
+          onClick={rotate}
+          disabled={rotating}
+          className={`mt-3 ${ghostButtonClass}`}
+        >
+          {rotating ? 'Génération…' : 'Changer le code'}
+        </button>
+        <p className="mt-2 text-sm text-muted">
+          Change-le si le code a pu fuiter : l&apos;ancien cesse aussitôt de fonctionner.
         </p>
       </Card>
 

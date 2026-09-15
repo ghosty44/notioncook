@@ -122,11 +122,16 @@ export async function setBrandPreference(householdId: string, input: SetBrandPre
     ? await ensureIngredient(householdId, input.ingredientName, input.aisle)
     : null;
 
+  // Comme setStoreRule au-dessus : une enseigne fournie par le client est
+  // vérifiée avant d'être écrite, sinon la ligne pointerait vers le magasin
+  // d'un autre foyer.
+  const store = input.storeId ? await resolveStore(householdId, input.storeId) : null;
+
   const [preference] = await db()
     .insert(brandPreferences)
     .values({
       householdId,
-      storeId: input.storeId,
+      storeId: store?.id ?? null,
       aisle: ingredient ? null : (input.aisle ?? null),
       ingredientId: ingredient?.id ?? null,
       brand: input.brand,
